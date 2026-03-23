@@ -1,0 +1,45 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { connectDb } from './config/db.js';
+import { authRouter } from './routes/auth.js';
+import { usersRouter } from './routes/users.js';
+import { uploadRouter } from './routes/upload.js';
+import { artemisPublicRouter } from './routes/artemisPublic.js';
+import { artemisInternalRouter } from './routes/artemisInternal.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const app = express();
+const port = process.env.PORT || 4000;
+
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '10mb' }));
+
+const publicDir = path.join(process.cwd(), 'public');
+app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
+
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/artemis', artemisPublicRouter);
+app.use('/api/internal/artemis', artemisInternalRouter);
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ message: 'Internal server error' });
+});
+
+await connectDb();
+app.listen(port, () => {
+  console.log(`Artemis API listening on http://localhost:${port}`);
+});
