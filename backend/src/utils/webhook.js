@@ -49,6 +49,7 @@ async function resolveTriggerCredentials() {
 export async function triggerAgentOnProposalSubmit({
   notificationEmail,
   attachmentFilePaths,
+  userId,
 }) {
   const resolved = await resolveTriggerCredentials();
 
@@ -66,8 +67,9 @@ export async function triggerAgentOnProposalSubmit({
   const eventId = `demoaml_event_${crypto.randomUUID()}`;
 
   const baseUrl = (process.env.API_PUBLIC_URL || "").replace(/\/$/, "");
-  const attachmentUrls = attachmentFilePaths.map(
-    (filename) => `${baseUrl}/uploads/${filename}`,
+  const filenames = attachmentFilePaths.map((f) => path.basename(f));
+  const attachmentUrls = filenames.map(
+    (filename) => `${baseUrl}/uploads/${userId}/${filename}`,
   );
   console.log("[webhook] Attachment URLs", attachmentUrls);
 
