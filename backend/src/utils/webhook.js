@@ -1,7 +1,10 @@
 import axios from "axios";
 import path from "node:path";
 import crypto from "node:crypto";
-import { AgentTriggerConfig, AGENT_TRIGGER_CONFIG_ID } from "../models/AgentTriggerConfig.js";
+import {
+  AgentTriggerConfig,
+  AGENT_TRIGGER_CONFIG_ID,
+} from "../models/AgentTriggerConfig.js";
 
 /**
  * Resolve webhook URL + token: integrated DB config first (both required), else env fallback.
@@ -63,8 +66,7 @@ export async function triggerAgentOnProposalSubmit({
   const eventId = `demoaml_event_${crypto.randomUUID()}`;
 
   const baseUrl = (process.env.API_PUBLIC_URL || "").replace(/\/$/, "");
-  const filenames = attachmentFilePaths.map((f) => path.basename(f));
-  const attachmentUrls = filenames.map(
+  const attachmentUrls = attachmentFilePaths.map(
     (filename) => `${baseUrl}/uploads/${filename}`,
   );
   console.log("[webhook] Attachment URLs", attachmentUrls);
