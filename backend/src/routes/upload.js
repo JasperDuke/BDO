@@ -82,9 +82,11 @@ uploadRouter.post("/", (req, res) => {
       });
     }
 
+    const fileList = Array.isArray(files) ? files : [];
+
     const webhookBody = {
       notificationEmail,
-      attachmentFilePaths: files.map((f) => f.path),
+      attachmentFilePaths: fileList.map((f) => f.path),
     };
 
     const webhookResult = await triggerAgentOnProposalSubmit(webhookBody);
@@ -92,6 +94,14 @@ uploadRouter.post("/", (req, res) => {
     res.status(201).json({
       ok: true,
       notificationEmail,
+      files: fileList.map((f) => ({
+        originalname: f.originalname,
+        filename: f.filename,
+        size: f.size,
+        mimetype: f.mimetype,
+      })),
+      fileCount: fileList.length,
+      uploadedAt: new Date().toISOString(),
       webhook: webhookResult,
     });
   });

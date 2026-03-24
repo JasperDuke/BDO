@@ -8,6 +8,7 @@ import { usersRouter } from "./routes/users.js";
 import { uploadRouter } from "./routes/upload.js";
 import { artemisPublicRouter } from "./routes/artemisPublic.js";
 import { artemisInternalRouter } from "./routes/artemisInternal.js";
+import { agentTriggerConfigRouter } from "./routes/agentTriggerConfig.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -18,7 +19,8 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "10mb" }));
+
+app.use(express.json({ limit: "100mb" }));
 
 const publicDir = path.join(process.cwd(), "public");
 app.use("/uploads", express.static(path.join(publicDir, "uploads")));
@@ -30,6 +32,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/artemis", artemisPublicRouter);
 app.use("/api/internal/artemis", artemisInternalRouter);
+app.use("/api/agent-trigger-config", agentTriggerConfigRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

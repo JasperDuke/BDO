@@ -17,6 +17,7 @@ import { FiLogOut } from "react-icons/fi";
 import { useAuth } from "@/context/AuthContext";
 import { FileUploadPanel } from "@/components/FileUploadPanel";
 import { ArtemisDataViewer } from "@/components/ArtemisDataViewer";
+import { TemporalTriggerSetupPanel } from "@/components/TemporalTriggerSetupPanel";
 
 /** Readable width — not full-bleed, not phone-narrow */
 const CONTENT_MAX = 1100;
@@ -131,6 +132,7 @@ export default function DashboardPage() {
             >
               <Tab disableRipple label="Upload files" />
               <Tab disableRipple label="Records" />
+              <Tab disableRipple label="Temporal Trigger Setup" />
             </Tabs>
             <Typography
               variant="body2"
@@ -139,7 +141,9 @@ export default function DashboardPage() {
             >
               {tab === 0
                 ? "Upload your file, then get the result in your email."
-                : "Search saved AML records—the same data used when your upload is checked."}
+                : tab === 1
+                  ? "Search saved AML records—the same data used when your upload is checked."
+                  : "Configure the agent webhook URL and token used after uploads (database first, then env fallback)."}
             </Typography>
           </Box>
 
@@ -151,7 +155,13 @@ export default function DashboardPage() {
               flexDirection: "column",
             }}
           >
-            {tab === 0 ? <FileUploadPanel /> : <ArtemisDataViewer />}
+            {tab === 0 ? (
+              <FileUploadPanel />
+            ) : tab === 1 ? (
+              <ArtemisDataViewer />
+            ) : (
+              <TemporalTriggerSetupPanel />
+            )}
           </Box>
         </Stack>
       </Box>
