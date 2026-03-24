@@ -64,11 +64,11 @@ export default function DashboardPage() {
             }}
           >
             <Typography
-              variant="subtitle2"
+              variant="h5"
               component="span"
               sx={{ flex: 1, fontWeight: 700 }}
             >
-              Artemis
+              Demo AML
             </Typography>
             <Typography
               variant="caption"
@@ -103,7 +103,7 @@ export default function DashboardPage() {
         <Stack spacing={1} sx={{ width: "100%", maxWidth: CONTENT_MAX }}>
           <Box>
             <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.75 }}>
-              Artemis records
+              Demo AML records
             </Typography>
             <Typography
               variant="body2"
@@ -111,7 +111,7 @@ export default function DashboardPage() {
               sx={{ lineHeight: 1.65, mb: 0.5 }}
             >
               Upload a file and enter your email. The result is produced by
-              comparing your upload with the Artemis records saved in this app.
+              comparing your upload with the Demo AML records saved in this app.
               Those records live in the Records tab. We check whether your file
               overlaps that data; when it does, you receive a summarized PDF by
               email.
@@ -139,7 +139,7 @@ export default function DashboardPage() {
             >
               {tab === 0
                 ? "Upload your file, then get the result in your email."
-                : "Search saved Artemis records—the same data used when your upload is checked."}
+                : "Search saved AML records—the same data used when your upload is checked."}
             </Typography>
           </Box>
 

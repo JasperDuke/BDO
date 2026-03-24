@@ -4,6 +4,28 @@ import { ArtemisRecord } from '../models/ArtemisRecord.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
 export const artemisPublicRouter = Router();
+
+// No auth for now — register before requireAuth.
+// POST /api/artemis/all?entitytype=individual|corporate — omit entitytype for all. Values must be lowercase.
+artemisPublicRouter.post('/all', async (req, res) => {
+  try {
+    const v = String(req.query.entitytype ?? '').trim().toLowerCase();
+    const filter = {};
+    if (v === 'individual') {
+      filter['metadata.entityType'] = 'INDIVIDUAL';
+    } else if (v === 'corporate') {
+      filter['metadata.entityType'] = 'CORPORATE';
+    } else if (v !== '') {
+      return res.status(400).json({ message: 'entitytype must be individual, corporate, or omitted.' });
+    }
+    const items = await ArtemisRecord.find(filter).sort({ createdAt: -1 }).lean();
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to load records' });
+  }
+});
+
 artemisPublicRouter.use(requireAuth);
 
 artemisPublicRouter.get('/', async (req, res) => {

@@ -5,6 +5,7 @@ import {
   applyEntityTypeRules,
   buildSearchText,
 } from '../models/ArtemisRecord.js';
+import { normalizeArtemisIncomingPayload } from '../utils/artemisExternalFormat.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
 export const artemisInternalRouter = Router();
@@ -31,7 +32,7 @@ artemisInternalRouter.get('/:id', async (req, res) => {
 
 artemisInternalRouter.post('/', async (req, res) => {
   try {
-    const body = applyEntityTypeRules(req.body);
+    const body = applyEntityTypeRules(normalizeArtemisIncomingPayload(req.body));
     const doc = new ArtemisRecord(body);
     doc._searchText = buildSearchText(doc);
     await doc.save();
@@ -47,7 +48,7 @@ artemisInternalRouter.post('/', async (req, res) => {
 
 artemisInternalRouter.put('/:id', async (req, res) => {
   try {
-    const body = applyEntityTypeRules(req.body);
+    const body = applyEntityTypeRules(normalizeArtemisIncomingPayload(req.body));
     const doc = await ArtemisRecord.findById(req.params.id);
     if (!doc) return res.status(404).json({ message: 'Record not found' });
     doc.set(body);

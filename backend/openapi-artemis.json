@@ -1,0 +1,168 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Artemis Records API",
+    "version": "1.0.0",
+    "description": "Artemis case records API. List-all uses POST with optional query filtering by entity type (individual vs corporate). Authentication is not required for this endpoint (temporary)."
+  },
+  "servers": [
+    {
+      "url": "https://api-demoaml.atenxion.ai/api",
+      "description": "Production Server"
+    }
+  ],
+  "paths": {
+    "/artemis/all": {
+      "post": {
+        "operationId": "artemisListAllRecords",
+        "tags": ["Artemis Records"],
+        "summary": "List all stored Artemis records",
+        "description": "Returns every Artemis document, sorted by createdAt descending. Omit query parameter entitytype to return all records; use entitytype=individual or entitytype=corporate to restrict results. Values must be lowercase.",
+        "parameters": [
+          {
+            "name": "entitytype",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["individual", "corporate"]
+            },
+            "description": "Optional. Lowercase. Filters metadata.entityType: individual → INDIVIDUAL, corporate → CORPORATE. Omit for all records."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Array of Artemis records retrieved successfully (JSON array root, not wrapped in an object).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArtemisRecord"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request — invalid entitytype query value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "entitytype must be individual, corporate, or omitted."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error while loading records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "Failed to load records"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorMessage": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Optional error code (e.g. TOKEN_EXPIRED)"
+          }
+        }
+      },
+      "ArtemisRecord": {
+        "type": "object",
+        "required": ["_id", "metadata"],
+        "description": "MongoDB lean document for an Artemis case. Nested shapes vary by entity type and data completeness.",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{24}$",
+            "description": "MongoDB ObjectId"
+          },
+          "metadata": {
+            "type": "object",
+            "required": ["entityType"],
+            "properties": {
+              "entityType": {
+                "type": "string",
+                "enum": ["CORPORATE", "INDIVIDUAL"]
+              },
+              "caseId": { "type": "string" },
+              "customerId": { "type": "string" },
+              "caseStatus": { "type": "string" },
+              "approvalStatus": { "type": "string" },
+              "riskRating": { "type": "string" },
+              "nextPeriodicReviewCycleDate": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "entityInformation": {
+            "type": "object",
+            "description": "General details and corporate- or individual-specific blocks",
+            "additionalProperties": true
+          },
+          "screeningAndSearchConclusion": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "riskAssessment": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "approvalHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "modificationDetails": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}
