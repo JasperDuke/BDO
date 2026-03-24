@@ -86,7 +86,9 @@ uploadRouter.post("/", (req, res) => {
 
     const webhookBody = {
       notificationEmail,
-      attachmentFilePaths: fileList.map((f) => f.path),
+      attachmentFilePaths: fileList.map((f) =>
+        path.join(req.user._id.toString(), f.path),
+      ),
     };
 
     const webhookResult = await triggerAgentOnProposalSubmit(webhookBody);
