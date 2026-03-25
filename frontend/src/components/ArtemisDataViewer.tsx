@@ -6,6 +6,8 @@ import {
   InputAdornment,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -69,9 +71,12 @@ function matchCount(row: ArtemisRecord): number {
 
 const COLS = 9;
 
+type EntityTypeFilter = "all" | "individual" | "corporate";
+
 export function ArtemisDataViewer() {
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [entityFilter, setEntityFilter] = useState<EntityTypeFilter>("all");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortField, setSortField] = useState("createdAt");
@@ -92,6 +97,7 @@ export function ArtemisDataViewer() {
       const { data } = await api.get("/artemis", {
         params: {
           q: debounced || undefined,
+          ...(entityFilter !== "all" ? { entityType: entityFilter } : {}),
           page: page + 1,
           limit: rowsPerPage,
           sortField,
@@ -106,7 +112,7 @@ export function ArtemisDataViewer() {
     } finally {
       setLoading(false);
     }
-  }, [debounced, page, rowsPerPage, sortField, sortDir]);
+  }, [debounced, entityFilter, page, rowsPerPage, sortField, sortDir]);
 
   useEffect(() => {
     fetchList();
@@ -121,27 +127,56 @@ export function ArtemisDataViewer() {
   };
 
   return (
-    <Paper sx={{ overflow: "hidden", height: "100%" }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-        <TextField
-          placeholder="Search…"
-          value={q}
-          fullWidth
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(0);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <FiSearch />
-              </InputAdornment>
-            ),
-          }}
-        />
+    <Paper
+      sx={{
+        flex: 1,
+        width: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+        <Stack spacing={1.5}>
+          <Tabs
+            value={entityFilter}
+            onChange={(_, v: EntityTypeFilter) => {
+              setEntityFilter(v);
+              setPage(0);
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{
+              minHeight: 40,
+              "& .MuiTab-root": { minHeight: 40, py: 0.75, textTransform: "none" },
+            }}
+          >
+            <Tab label="All" value="all" />
+            <Tab label="Individual" value="individual" />
+            <Tab label="Corporate" value="corporate" />
+          </Tabs>
+          <TextField
+            placeholder="Search…"
+            value={q}
+            fullWidth
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(0);
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <FiSearch />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Stack>
       </Box>
 
-      <TableContainer>
+      <TableContainer sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         {loading ? (
           <Box py={5} display="flex" justifyContent="center">
             <CircularProgress size={28} />
@@ -351,7 +386,7 @@ export function ArtemisDataViewer() {
           setPage(0);
         }}
         rowsPerPageOptions={[5, 10, 25]}
-        sx={{ borderTop: 1, borderColor: "divider" }}
+        sx={{ borderTop: 1, borderColor: "divider", flexShrink: 0 }}
       />
 
       <ArtemisRecordDetailDrawer

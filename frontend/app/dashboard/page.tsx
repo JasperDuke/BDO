@@ -103,9 +103,6 @@ export default function DashboardPage() {
       >
         <Stack spacing={1} sx={{ width: "100%", maxWidth: CONTENT_MAX }}>
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.75 }}>
-              Demo AML records
-            </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
@@ -149,10 +146,11 @@ export default function DashboardPage() {
 
           <Box
             sx={{
-              height: "calc(100vh - 295px)",
-              minHeight: 0,
+              height: "calc(100vh - 260px)",
+              minHeight: 280,
               display: "flex",
               flexDirection: "column",
+              overflow: "hidden",
             }}
           >
             {tab === 0 ? (

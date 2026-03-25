@@ -3,7 +3,7 @@
   "info": {
     "title": "Artemis Records API",
     "version": "1.0.0",
-    "description": "Artemis case records API. List-all uses POST with optional query filtering by entity type (individual vs corporate). Authentication is not required for this endpoint (temporary)."
+    "description": "Artemis case records API. Search-by-name uses POST with a JSON body; no authentication is required for this endpoint (temporary). Responses use a unified entityInformation shape (corporateSpecific and individualSpecific are always objects; the non-applicable branch is empty)."
   },
   "servers": [
     {
@@ -12,71 +12,63 @@
     }
   ],
   "paths": {
-    "/artemis/all": {
+    "/artemis/search-by-name": {
       "post": {
-        "operationId": "artemisListAllRecords",
+        "operationId": "artemisSearchByName",
         "tags": ["Artemis Records"],
-        "summary": "List all stored Artemis records",
-        "description": "Returns every Artemis document, sorted by createdAt descending. Omit query parameter entitytype to return all records; use entitytype=individual or entitytype=corporate to restrict results. Values must be lowercase.",
-        "parameters": [
-          {
-            "name": "entitytype",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": ["individual", "corporate"]
-            },
-            "description": "Optional. Lowercase. Filters metadata.entityType: individual → INDIVIDUAL, corporate → CORPORATE. Omit for all records."
-          }
-        ],
+        "summary": "Search records by display name",
+        "description": "Finds all Artemis documents (INDIVIDUAL and CORPORATE) whose entityInformation.generalDetails.name contains the given string. Matching is case-insensitive. Returns every match with no limit. Each item in matches includes entityInformation.corporateSpecific and entityInformation.individualSpecific as objects; for INDIVIDUAL records corporateSpecific is {}, for CORPORATE records individualSpecific is {}.",
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {}
+                "$ref": "#/components/schemas/SearchByNameRequest"
+              },
+              "example": {
+                "name": "Sunway"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Array of Artemis records retrieved successfully (JSON array root, not wrapped in an object).",
+            "description": "Search completed; matches may be an empty array.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ArtemisRecord"
-                  }
+                  "$ref": "#/components/schemas/SearchByNameResponse"
+                },
+                "example": {
+                  "query": { "name": "Sunway" },
+                  "count": 1,
+                  "matches": []
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request — invalid entitytype query value",
+            "description": "Bad Request — missing or empty name in JSON body",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorMessage"
                 },
                 "example": {
-                  "message": "entitytype must be individual, corporate, or omitted."
+                  "message": "Body must include a non-empty name string."
                 }
               }
             }
           },
           "500": {
-            "description": "Server error while loading records",
+            "description": "Server error while searching records",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorMessage"
                 },
                 "example": {
-                  "message": "Failed to load records"
+                  "message": "Failed to search records by name"
                 }
               }
             }
@@ -99,10 +91,49 @@
           }
         }
       },
+      "SearchByNameRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Substring to match (case-insensitive) against entityInformation.generalDetails.name"
+          }
+        }
+      },
+      "SearchByNameResponse": {
+        "type": "object",
+        "required": ["query", "count", "matches"],
+        "properties": {
+          "query": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Echo of the searched name (trimmed)"
+              }
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of documents in matches (same as matches.length)"
+          },
+          "matches": {
+            "type": "array",
+            "description": "All matching records, newest first (createdAt descending). Each element follows ArtemisRecord with unified entityInformation branches.",
+            "items": {
+              "$ref": "#/components/schemas/ArtemisRecord"
+            }
+          }
+        }
+      },
       "ArtemisRecord": {
         "type": "object",
         "required": ["_id", "metadata"],
-        "description": "MongoDB lean document for an Artemis case. Nested shapes vary by entity type and data completeness.",
+        "description": "MongoDB lean document for an Artemis case. For search-by-name responses, entityInformation always includes generalDetails, corporateSpecific, and individualSpecific objects (non-applicable branch is empty).",
         "properties": {
           "_id": {
             "type": "string",

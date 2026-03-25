@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/authJwt.js';
 import { ArtemisRecord } from '../models/ArtemisRecord.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
+import { toUnifiedArtemisRecord } from '../utils/artemisUnifiedResponse.js';
 
 export const artemisPublicRouter = Router();
 
-// No auth for now — register before requireAuth.
-// POST /api/artemis/all?entitytype=individual|corporate — omit entitytype for all. Values must be lowercase.
+// No auth — register before requireAuth.
+// POST /all?entitytype=individual|corporate — omit entitytype for all (lowercase).
+// POST /search-by-name — JSON body { "name": "..." }.
 artemisPublicRouter.post('/all', async (req, res) => {
   try {
     const v = String(req.query.entitytype ?? '').trim().toLowerCase();
@@ -23,6 +25,35 @@ artemisPublicRouter.post('/all', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Failed to load records' });
+  }
+});
+
+// No auth — JSON body: { "name": "..." } (Content-Type: application/json)
+artemisPublicRouter.post('/search-by-name', async (req, res) => {
+  try {
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) {
+      return res.status(400).json({ message: 'Body must include a non-empty name string.' });
+    }
+
+    // Flag `i` = case-insensitive. No limit — returns every matching document (watch payload size on large DBs).
+    const regex = new RegExp(escapeRegex(name), 'i');
+    const filter = {
+      'entityInformation.generalDetails.name': regex,
+    };
+
+    const items = await ArtemisRecord.find(filter).sort({ createdAt: -1 }).lean();
+
+    const matches = items.map((doc) => toUnifiedArtemisRecord(doc));
+
+    res.json({
+      query: { name },
+      count: matches.length,
+      matches,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to search records by name' });
   }
 });
 
@@ -54,6 +85,19 @@ artemisPublicRouter.get('/', async (req, res) => {
     const filter = {};
     if (q) {
       filter._searchText = new RegExp(escapeRegex(q), 'i');
+    }
+
+    const entityTypeQ = String(req.query.entityType ?? req.query.entitytype ?? '')
+      .trim()
+      .toLowerCase();
+    if (entityTypeQ === 'individual') {
+      filter['metadata.entityType'] = 'INDIVIDUAL';
+    } else if (entityTypeQ === 'corporate') {
+      filter['metadata.entityType'] = 'CORPORATE';
+    } else if (entityTypeQ !== '' && entityTypeQ !== 'all') {
+      return res.status(400).json({
+        message: 'entityType must be individual, corporate, all, or omitted.',
+      });
     }
 
     const [items, total] = await Promise.all([

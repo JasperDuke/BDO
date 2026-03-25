@@ -40,9 +40,10 @@ const ACCEPT = {
 const SUCCESS_TOAST_MS = 9000;
 
 /** Compact drop zone; list area scrolls below */
-const DROP_ZONE_MIN = 112;
-const FILE_LIST_MIN = 80;
-const FILE_LIST_MAX = 200;
+const DROP_ZONE_MIN = 100;
+/** Right column file list: modest height, scrolls when needed */
+const FILE_LIST_PANEL_MIN = 140;
+const FILE_LIST_MAX_CSS = "min(50vh, 240px)";
 
 function fileIcon(mime: string) {
   if (mime === "application/pdf") return <FiFileText size={18} />;
@@ -155,269 +156,349 @@ export function FileUploadPanel() {
         overflow: "hidden",
       }}
     >
-      <Grid
-        container
-        spacing={2}
-        alignItems="stretch"
+      <Box
         sx={{
           flex: 1,
           minHeight: 0,
-          height: "100%",
-          width: "100%",
+          overflow: "auto",
+          pr: 0.25,
         }}
       >
-        {/* Left: upload area only */}
         <Grid
-          item
-          xs={12}
-          md={7}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
+          container
+          columnSpacing={0}
+          rowSpacing={2}
+          alignItems="stretch"
+          sx={{ width: "100%" }}
         >
-          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.25, flexShrink: 0 }}>
-            Files
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, flexShrink: 0, display: "block" }}>
-            PDF and Excel (.xlsx) only.
-          </Typography>
-          <Box
-            onDragEnter={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragOver={(e) => e.preventDefault()}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={onDrop}
+          {/* Left: upload zone + email + send — border on Grid item = full row height */}
+          <Grid
+            item
+            xs={12}
+            md={6}
             sx={{
-              border: "1px dashed",
-              borderColor: dragOver ? "primary.main" : "divider",
-              borderRadius: 1,
-              p: 1.5,
-              flexShrink: 0,
-              minHeight: DROP_ZONE_MIN,
-              textAlign: "center",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: dragOver ? "action.selected" : "action.hover",
-              transition: "border-color 0.15s, background-color 0.15s",
-            }}
-          >
-            <Stack spacing={0.75} alignItems="center">
-              <FiUploadCloud size={22} style={{ opacity: 0.75 }} />
-              <Typography variant="caption" color="text.secondary">
-                Drop here or
-              </Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                disabled={uploading}
-                size="small"
-                sx={{ py: 0.25, px: 1, fontSize: "0.8125rem" }}
-              >
-                Choose files
-                <input
-                  type="file"
-                  hidden
-                  multiple
-                  accept={Object.keys(ACCEPT).join(",")}
-                  onChange={(e) => e.target.files && addFiles(e.target.files)}
-                />
-              </Button>
-            </Stack>
-          </Box>
-
-          <Box sx={{ mt: 1.25, display: "flex", flexDirection: "column", flexShrink: 0 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 0.5 }}>
-              Selected files {files.length ? `(${files.length})` : ""}
-            </Typography>
-            <Box
-              sx={{
-                minHeight: FILE_LIST_MIN,
-                maxHeight: FILE_LIST_MAX,
-                overflow: "auto",
-                border: 1,
-                borderColor: "divider",
-                borderRadius: 1,
-                bgcolor: "action.hover",
-                px: 0.5,
-              }}
-            >
-              {files.length === 0 ? (
-                <Box
-                  sx={{
-                    minHeight: FILE_LIST_MIN,
-                    px: 1.5,
-                    py: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ lineHeight: 1.5 }}>
-                    No files chosen. Add PDF or Excel files above.
-                  </Typography>
-                </Box>
-              ) : (
-                <List dense disablePadding sx={{ py: 0.25 }}>
-                  {files.map((f, i) => (
-                    <ListItem
-                      key={`${f.name}-${i}`}
-                      secondaryAction={
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          aria-label={`Remove ${f.name}`}
-                          onClick={() =>
-                            setFiles((prev) => prev.filter((_, j) => j !== i))
-                          }
-                        >
-                          <FiTrash2 size={16} />
-                        </IconButton>
-                      }
-                      sx={{ py: 0.5, px: 0.5, alignItems: "flex-start" }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 32, color: "text.secondary", mt: 0.25 }}>
-                        {fileIcon(f.type)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={f.name}
-                        secondary={formatSize(f.size)}
-                        primaryTypographyProps={{
-                          variant: "body2",
-                          title: f.name,
-                          sx: {
-                            wordBreak: "break-word",
-                            whiteSpace: "normal",
-                            lineHeight: 1.35,
-                            pr: 1,
-                          },
-                        }}
-                        secondaryTypographyProps={{ variant: "caption" }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </Box>
-          </Box>
-        </Grid>
-
-        {/* Right: email + send */}
-        <Grid
-          item
-          xs={12}
-          md={5}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
-        >
-          <Box
-            sx={{
-              flex: 1,
               display: "flex",
               flexDirection: "column",
-              minHeight: { xs: "auto", md: 0 },
-              p: { xs: 0, md: 2 },
-              borderLeft: { md: 1 },
-              borderTop: { xs: 1, md: 0 },
+              alignSelf: "stretch",
+              minHeight: 0,
+              borderRight: { md: 1 },
+              borderBottom: { xs: 1, md: 0 },
               borderColor: "divider",
-              pt: { xs: 2, md: 0 },
+              pr: { xs: 0, md: 3 },
+              pb: { xs: 2.5, md: 0 },
             }}
           >
-            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5, flexShrink: 0 }}>
-              Delivery
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mb: 0, lineHeight: 1.6, flexShrink: 0 }}
-            >
-              We use this address to send your screening result (PDF) when
-              processing finishes.
-            </Typography>
-
             <Box
               sx={{
-                flex: { xs: "none", md: 1 },
-                minHeight: { md: 0 },
+                flex: 1,
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                py: { xs: 2, md: 1.5 },
+                flexDirection: "column",
+                width: "100%",
+                minHeight: 0,
               }}
             >
-              <Stack alignItems="center" spacing={1} sx={{ maxWidth: 200 }}>
+              <Box sx={{ mb: 2, flexShrink: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={700}
+                  sx={{ mb: 0.5 }}
+                >
+                  Upload & send
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", lineHeight: 1.6 }}
+                >
+                  PDF and Excel (.xlsx) only. Files you add appear in the list
+                  on the right.
+                </Typography>
+              </Box>
+
+              <Stack spacing={2.5} sx={{ flexShrink: 0, width: "100%" }}>
                 <Box
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={onDrop}
                   sx={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: "50%",
-                    bgcolor: "action.selected",
-                    border: 1,
-                    borderColor: "divider",
+                    border: "1px dashed",
+                    borderColor: dragOver ? "primary.main" : "divider",
+                    borderRadius: 1.5,
+                    p: 2,
+                    flexShrink: 0,
+                    minHeight: DROP_ZONE_MIN,
+                    textAlign: "center",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "primary.main",
+                    bgcolor: dragOver ? "action.selected" : "action.hover",
+                    transition: "border-color 0.15s, background-color 0.15s",
                   }}
-                  aria-hidden
                 >
-                  <FiSend size={22} strokeWidth={2} />
+                  <Stack spacing={1} alignItems="center">
+                    <FiUploadCloud size={24} style={{ opacity: 0.8 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      Drop here or
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      disabled={uploading}
+                      size="small"
+                      sx={{ py: 0.5, px: 1.25, fontSize: "0.8125rem" }}
+                    >
+                      Choose files
+                      <input
+                        type="file"
+                        hidden
+                        multiple
+                        accept={Object.keys(ACCEPT).join(",")}
+                        onChange={(e) =>
+                          e.target.files && addFiles(e.target.files)
+                        }
+                      />
+                    </Button>
+                  </Stack>
                 </Box>
-                <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ lineHeight: 1.4 }}>
-                  PDF summary sent to this inbox when ready
-                </Typography>
+
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  alignItems="center"
+                  sx={{
+                    flexShrink: 0,
+                    py: 1.25,
+                    px: 1.25,
+                    borderRadius: 1.5,
+                    bgcolor: "action.hover",
+                    border: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      bgcolor: "action.selected",
+                      border: 1,
+                      borderColor: "divider",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "primary.main",
+                      flexShrink: 0,
+                    }}
+                    aria-hidden
+                  >
+                    <FiSend size={20} strokeWidth={2} />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ lineHeight: 1.5 }}
+                  >
+                    Result PDF is emailed when processing finishes.
+                  </Typography>
+                </Stack>
+
+                <Stack spacing={2} sx={{ flexShrink: 0, width: "100%" }}>
+                  <TextField
+                    fullWidth
+                    type="email"
+                    autoComplete="email"
+                    label="Recipient email"
+                    placeholder="you@company.com"
+                    value={notificationEmail}
+                    onChange={(e) => setNotificationEmail(e.target.value)}
+                    onBlur={() => setEmailTouched(true)}
+                    error={Boolean(emailError)}
+                    helperText={emailError || "Required for every upload."}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <FiMail />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  {uploading && (
+                    <LinearProgress
+                      variant="determinate"
+                      value={progress}
+                      sx={{ borderRadius: 1 }}
+                    />
+                  )}
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="medium"
+                    onClick={onUpload}
+                    disabled={
+                      uploading ||
+                      !files.length ||
+                      !isValidEmail(notificationEmail)
+                    }
+                  >
+                    {uploading ? `Sending… ${progress}%` : "Send"}
+                  </Button>
+                </Stack>
               </Stack>
             </Box>
+          </Grid>
 
-            <Stack spacing={2} sx={{ flexShrink: 0 }}>
-              <TextField
-                fullWidth
-                type="email"
-                autoComplete="email"
-                label="Recipient email"
-                placeholder="you@company.com"
-                value={notificationEmail}
-                onChange={(e) => setNotificationEmail(e.target.value)}
-                onBlur={() => setEmailTouched(true)}
-                error={Boolean(emailError)}
-                helperText={emailError || "Required for every upload."}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <FiMail />
-                    </InputAdornment>
-                  ),
+          {/* Right: selected files list */}
+          <Grid
+            item
+            xs={12}
+            md={6}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignSelf: "stretch",
+              minHeight: 0,
+              pl: { xs: 0, md: 3 },
+            }}
+          >
+            <Box
+              sx={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+                minHeight: 0,
+                pr: { xs: 0, md: 0.25 },
+              }}
+            >
+              <Box sx={{ mb: 2, flexShrink: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={700}
+                  sx={{ mb: 0.5, flexShrink: 0 }}
+                >
+                  Files to send
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ flexShrink: 0, display: "block", lineHeight: 1.6 }}
+                >
+                  {files.length
+                    ? `${files.length} file${files.length === 1 ? "" : "s"} selected — remove with the trash icon if needed.`
+                    : "Nothing queued yet."}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  flex: 1,
+                  minHeight: FILE_LIST_PANEL_MIN,
+                  maxHeight: FILE_LIST_MAX_CSS,
+                  overflow: "auto",
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  bgcolor: "action.hover",
+                  px: 0.5,
+                  display: "flex",
+                  flexDirection: "column",
                 }}
-              />
-              {uploading && (
-                <LinearProgress
-                  variant="determinate"
-                  value={progress}
-                  sx={{ borderRadius: 1 }}
-                />
-              )}
-              <Button
-                variant="contained"
-                fullWidth
-                size="large"
-                onClick={onUpload}
-                disabled={
-                  uploading || !files.length || !isValidEmail(notificationEmail)
-                }
               >
-                {uploading ? `Sending… ${progress}%` : "Send"}
-              </Button>
-            </Stack>
-          </Box>
+                {files.length === 0 ? (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minHeight: FILE_LIST_PANEL_MIN,
+                      px: 2,
+                      py: 3,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <FiFileText
+                      size={36}
+                      style={{ opacity: 0.35 }}
+                      aria-hidden
+                    />
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        letterSpacing: "0.12em",
+                        fontWeight: 800,
+                        color: "text.disabled",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      NO FILE SELECTED
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ maxWidth: 280, lineHeight: 1.55 }}
+                    >
+                      Use <strong>Choose files</strong> or drag and drop on the
+                      left. Only PDF and Excel (.xlsx) are accepted.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <List dense disablePadding sx={{ py: 0.25 }}>
+                    {files.map((f, i) => (
+                      <ListItem
+                        key={`${f.name}-${i}`}
+                        secondaryAction={
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            aria-label={`Remove ${f.name}`}
+                            onClick={() =>
+                              setFiles((prev) => prev.filter((_, j) => j !== i))
+                            }
+                          >
+                            <FiTrash2 size={16} />
+                          </IconButton>
+                        }
+                        sx={{ py: 0.5, px: 0.5, alignItems: "flex-start" }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            minWidth: 32,
+                            color: "text.secondary",
+                            mt: 0.25,
+                          }}
+                        >
+                          {fileIcon(f.type)}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={f.name}
+                          secondary={formatSize(f.size)}
+                          primaryTypographyProps={{
+                            variant: "body2",
+                            title: f.name,
+                            sx: {
+                              wordBreak: "break-word",
+                              whiteSpace: "normal",
+                              lineHeight: 1.35,
+                              pr: 1,
+                            },
+                          }}
+                          secondaryTypographyProps={{ variant: "caption" }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Box>
+            </Box>
+          </Grid>
         </Grid>
-      </Grid>
+      </Box>
 
       <Snackbar
         open={!!snack}
