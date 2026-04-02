@@ -22,14 +22,22 @@ import { TemporalTriggerSetupPanel } from "@/components/TemporalTriggerSetupPane
 /** Readable width — not full-bleed, not phone-narrow */
 const CONTENT_MAX = 1100;
 
+type TabKey = "upload" | "records" | "temporal";
+
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<TabKey>("upload");
+
+  const showRecords = user?.showRecordsTab !== false;
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!showRecords && tab === "records") setTab("upload");
+  }, [showRecords, tab]);
 
   if (loading || !user) {
     return (
@@ -43,6 +51,13 @@ export default function DashboardPage() {
       </Box>
     );
   }
+
+  const tabHint =
+    tab === "upload"
+      ? "Upload your file, then get the result in your email."
+      : tab === "records"
+        ? "Search saved AML records—the same data used when your upload is checked."
+        : "Configure the agent webhook URL and token used after uploads (database first, then env fallback).";
 
   return (
     <Box minHeight="100vh" display="flex" flexDirection="column">
@@ -108,18 +123,28 @@ export default function DashboardPage() {
               color="text.secondary"
               sx={{ lineHeight: 1.65, mb: 0.5 }}
             >
-              Upload a file and enter your email. The result is produced by
-              comparing your upload with the Demo AML records saved in this app.
-              Those records live in the Records tab. We check whether your file
-              overlaps that data; when it does, you receive a summarized PDF by
-              email.
+              {showRecords ? (
+                <>
+                  Upload a file and enter your email. The result is produced by
+                  comparing your upload with the Demo AML records saved in this app.
+                  Those records live in the Records tab. We check whether your file
+                  overlaps that data; when it does, you receive a summarized PDF by
+                  email.
+                </>
+              ) : (
+                <>
+                  Upload a file and enter your email. The result is produced by
+                  comparing your upload with Demo AML data configured for this
+                  application.
+                </>
+              )}
             </Typography>
           </Box>
 
           <Box>
             <Tabs
               value={tab}
-              onChange={(_, v) => setTab(v)}
+              onChange={(_, v) => setTab(v as TabKey)}
               variant="fullWidth"
               sx={{
                 minHeight: 52,
@@ -127,20 +152,22 @@ export default function DashboardPage() {
                 "& .MuiTabs-indicator": { height: 2 },
               }}
             >
-              <Tab disableRipple label="Upload files" />
-              <Tab disableRipple label="Records" />
-              <Tab disableRipple label="Temporal Trigger Setup" />
+              <Tab disableRipple label="Upload files" value="upload" />
+              {showRecords && (
+                <Tab disableRipple label="Records" value="records" />
+              )}
+              <Tab
+                disableRipple
+                label="Temporal Trigger Setup"
+                value="temporal"
+              />
             </Tabs>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ mt: 1.5, lineHeight: 1.6 }}
             >
-              {tab === 0
-                ? "Upload your file, then get the result in your email."
-                : tab === 1
-                  ? "Search saved AML records—the same data used when your upload is checked."
-                  : "Configure the agent webhook URL and token used after uploads (database first, then env fallback)."}
+              {tabHint}
             </Typography>
           </Box>
 
@@ -153,13 +180,9 @@ export default function DashboardPage() {
               overflow: "hidden",
             }}
           >
-            {tab === 0 ? (
-              <FileUploadPanel />
-            ) : tab === 1 ? (
-              <ArtemisDataViewer />
-            ) : (
-              <TemporalTriggerSetupPanel />
-            )}
+            {tab === "upload" && <FileUploadPanel />}
+            {tab === "records" && showRecords && <ArtemisDataViewer />}
+            {tab === "temporal" && <TemporalTriggerSetupPanel />}
           </Box>
         </Stack>
       </Box>

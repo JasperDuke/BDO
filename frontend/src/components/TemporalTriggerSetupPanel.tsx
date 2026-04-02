@@ -45,7 +45,7 @@ function normalizeDto(raw: unknown): AgentTriggerConfigDto {
   return {
     apiUrl: typeof d.apiUrl === "string" ? d.apiUrl : "",
     tokenConfigured: Boolean(d.tokenConfigured ?? d.token_configured),
-    token: d.token || "",
+    token: typeof d.token === "string" ? d.token : "",
     message: typeof d.message === "string" ? d.message : "",
     updatedAt:
       (typeof d.updatedAt === "string" ? d.updatedAt : null) ??
@@ -235,7 +235,7 @@ export function TemporalTriggerSetupPanel() {
                 color={savedSnapshot.tokenConfigured ? "success" : "default"}
                 variant={savedSnapshot.tokenConfigured ? "filled" : "outlined"}
               />
-              {savedSnapshot.tokenConfigured && (
+              {savedSnapshot.tokenConfigured && savedSnapshot.token && (
                 <Typography
                   variant="caption"
                   sx={{
@@ -243,12 +243,11 @@ export function TemporalTriggerSetupPanel() {
                     letterSpacing: "0.15em",
                     color: "text.primary",
                   }}
+                  title={savedSnapshot.token}
                 >
-                  {savedSnapshot.token.substring(0, 5) +
-                    "....." +
-                    savedSnapshot.token.substring(
-                      savedSnapshot.token.length - 5,
-                    )}
+                  {savedSnapshot.token.length > 12
+                    ? `${savedSnapshot.token.slice(0, 5)}.....${savedSnapshot.token.slice(-5)}`
+                    : savedSnapshot.token}
                 </Typography>
               )}
             </Stack>

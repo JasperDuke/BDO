@@ -1,8 +1,10 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { connectDb } from './config/db.js';
+import mongoose from 'mongoose';
 import { User } from './models/User.js';
 import { ArtemisRecord, buildSearchText } from './models/ArtemisRecord.js';
+import { AgentTriggerConfig } from './models/AgentTriggerConfig.js';
 
 const MONTHS = {
   JAN: 0,
@@ -538,17 +540,71 @@ const SEED_ARTEMIS = [
 
 const DEFAULT_EMAIL = 'user@artemis.com';
 const DEFAULT_PASSWORD = 'user123';
+const DEMO_EMAIL = 'phuupwint@demo.com';
+const DEMO_PASSWORD = 'phuupwint123';
+
+/**
+ * Ensures the two demo accounts exist. Creates any missing user only; does not reset passwords for existing users.
+ */
+async function ensureDemoUsers() {
+  let artemisUser = await User.findOne({ email: DEFAULT_EMAIL });
+  if (!artemisUser) {
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
+    artemisUser = await User.create({
+      email: DEFAULT_EMAIL,
+      passwordHash,
+      name: 'Default User',
+      showRecordsTab: true,
+    });
+    console.log(`Created user: ${DEFAULT_EMAIL} / ${DEFAULT_PASSWORD}`);
+  } else {
+    console.log(`User already exists (skipped): ${DEFAULT_EMAIL}`);
+  }
+
+  let demoUser = await User.findOne({ email: DEMO_EMAIL });
+  if (!demoUser) {
+    const demoHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+    demoUser = await User.create({
+      email: DEMO_EMAIL,
+      passwordHash: demoHash,
+      name: 'Phuu Pwint',
+      showRecordsTab: false,
+    });
+    console.log(`Created user: ${DEMO_EMAIL} / ${DEMO_PASSWORD} (Records tab hidden)`);
+  } else {
+    console.log(`User already exists (skipped): ${DEMO_EMAIL}`);
+  }
+
+  return { artemisUser, demoUser };
+}
 
 async function seed() {
   await connectDb();
 
-  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
-  await User.findOneAndUpdate(
-    { email: DEFAULT_EMAIL },
-    { $set: { email: DEFAULT_EMAIL, passwordHash, name: 'Default User' } },
-    { upsert: true, new: true }
-  );
-  console.log(`User upserted: ${DEFAULT_EMAIL} / ${DEFAULT_PASSWORD}`);
+  const { artemisUser } = await ensureDemoUsers();
+
+  /** Migrate legacy singleton AgentTriggerConfig _id "default" → per-user doc for user@artemis.com */
+  try {
+    const coll = mongoose.connection.db.collection('agenttriggerconfigs');
+    const legacy = await coll.findOne({ _id: 'default' });
+    if (legacy && artemisUser?._id) {
+      await AgentTriggerConfig.findOneAndUpdate(
+        { userId: artemisUser._id },
+        {
+          $set: {
+            apiUrl: legacy.apiUrl ?? '',
+            triggerToken: legacy.triggerToken ?? '',
+            triggerMessage: legacy.triggerMessage ?? '',
+          },
+        },
+        { upsert: true, new: true }
+      );
+      await coll.deleteOne({ _id: 'default' });
+      console.log('Migrated legacy agent trigger config to user@artemis.com');
+    }
+  } catch (e) {
+    console.warn('AgentTriggerConfig migration skipped:', e.message);
+  }
 
   const caseIds = SEED_ARTEMIS.map((r) => r.Metadata.caseId);
   const removed = await ArtemisRecord.deleteMany({ 'metadata.caseId': { $in: caseIds } });

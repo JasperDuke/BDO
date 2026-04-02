@@ -5,9 +5,10 @@ const base = '/agent-trigger-config';
 export type AgentTriggerConfigDto = {
   apiUrl: string;
   tokenConfigured: boolean;
+  /** Stored Authorization header value (returned so you can verify it in the UI) */
+  token: string;
   /** Stored webhook payload message (may be empty → server uses built-in default) */
   message: string;
-  token: string;
   updatedAt: string | null;
 };
 

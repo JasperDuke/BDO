@@ -29,7 +29,12 @@ authRouter.post('/register', async (req, res) => {
     const token = signUserToken(user._id.toString());
     return res.status(201).json({
       token,
-      user: { id: user._id, email: user.email, name: user.name },
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        showRecordsTab: user.showRecordsTab !== false,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -53,7 +58,12 @@ authRouter.post('/login', async (req, res) => {
     const token = signUserToken(user._id.toString());
     return res.json({
       token,
-      user: { id: user._id, email: user.email, name: user.name },
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        showRecordsTab: user.showRecordsTab !== false,
+      },
     });
   } catch (err) {
     console.error(err);

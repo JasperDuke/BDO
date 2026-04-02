@@ -1,9 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/authJwt.js";
-import {
-  AgentTriggerConfig,
-  AGENT_TRIGGER_CONFIG_ID,
-} from "../models/AgentTriggerConfig.js";
+import { AgentTriggerConfig } from "../models/AgentTriggerConfig.js";
 
 export const agentTriggerConfigRouter = Router();
 agentTriggerConfigRouter.use(requireAuth);
@@ -17,18 +14,32 @@ function isValidHttpUrl(s) {
   }
 }
 
+function dtoFromDoc(doc) {
+  if (!doc) {
+    return {
+      apiUrl: "",
+      tokenConfigured: false,
+      token: "",
+      message: "",
+      updatedAt: null,
+    };
+  }
+  const token = doc.triggerToken != null ? String(doc.triggerToken).trim() : "";
+  return {
+    apiUrl: doc.apiUrl?.trim() || "",
+    tokenConfigured: Boolean(token),
+    token,
+    message: doc.triggerMessage != null ? String(doc.triggerMessage) : "",
+    updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
+  };
+}
+
 agentTriggerConfigRouter.get("/", async (req, res) => {
   try {
-    const doc = await AgentTriggerConfig.findById(
-      AGENT_TRIGGER_CONFIG_ID,
-    ).lean();
-    res.json({
-      apiUrl: doc?.apiUrl?.trim() || "",
-      tokenConfigured: Boolean(doc?.triggerToken?.trim()),
-      token: doc?.triggerToken?.trim() || "",
-      message: doc?.triggerMessage != null ? String(doc.triggerMessage) : "",
-      updatedAt: doc?.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
-    });
+    const doc = await AgentTriggerConfig.findOne({
+      userId: req.user._id,
+    }).lean();
+    res.json(dtoFromDoc(doc));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Could not load trigger config" });
@@ -57,22 +68,13 @@ agentTriggerConfigRouter.put("/", async (req, res) => {
       $set.triggerToken = triggerTokenRaw.trim();
     }
 
-    await AgentTriggerConfig.findByIdAndUpdate(
-      AGENT_TRIGGER_CONFIG_ID,
+    const doc = await AgentTriggerConfig.findOneAndUpdate(
+      { userId: req.user._id },
       { $set },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
-
-    const doc = await AgentTriggerConfig.findById(
-      AGENT_TRIGGER_CONFIG_ID,
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     ).lean();
-    res.json({
-      apiUrl: doc?.apiUrl || "",
-      tokenConfigured: Boolean(doc?.triggerToken?.trim()),
-      token: doc?.triggerToken?.trim() || "",
-      message: doc?.triggerMessage != null ? String(doc.triggerMessage) : "",
-      updatedAt: doc?.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
-    });
+
+    res.json(dtoFromDoc(doc));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Could not save trigger config" });

@@ -5,7 +5,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { api, setAuthFailureHandler } from '@/lib/api';
 import { clearToken, getToken, setToken } from '@/lib/auth-storage';
 
-export type AuthUser = { id: string; email: string; name?: string };
+export type AuthUser = {
+  id: string;
+  email: string;
+  name?: string;
+  /** false hides the Records tab on the dashboard */
+  showRecordsTab?: boolean;
+};
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -53,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: String(data._id ?? data.id),
           email: data.email,
           name: data.name,
+          showRecordsTab: data.showRecordsTab !== false,
         });
       } catch {
         clearToken();
@@ -73,14 +80,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
     setToken(data.token);
-    setUser(data.user);
+    setUser({
+      ...data.user,
+      id: String(data.user?.id ?? ''),
+      showRecordsTab: data.user?.showRecordsTab !== false,
+    });
     router.replace('/dashboard');
   }, [router]);
 
   const register = useCallback(async (email: string, password: string, name?: string) => {
     const { data } = await api.post('/auth/register', { email, password, name });
     setToken(data.token);
-    setUser(data.user);
+    setUser({
+      ...data.user,
+      id: String(data.user?.id ?? ''),
+      showRecordsTab: data.user?.showRecordsTab !== false,
+    });
     router.replace('/dashboard');
   }, [router]);
 

@@ -19,6 +19,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    /** When false, dashboard hides the Records (Artemis) tab */
+    showRecordsTab: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );

@@ -1,19 +1,21 @@
 import axios from "axios";
 import path from "node:path";
 import crypto from "node:crypto";
-import {
-  AgentTriggerConfig,
-  AGENT_TRIGGER_CONFIG_ID,
-} from "../models/AgentTriggerConfig.js";
+import mongoose from "mongoose";
+import { AgentTriggerConfig } from "../models/AgentTriggerConfig.js";
 import { DEFAULT_AGENT_TRIGGER_MESSAGE } from "./agentTriggerDefaults.js";
 
 /**
- * Load URL, token, and message: DB first for credentials; message prefers DB, then env, then default.
+ * Load URL, token, and message for this uploader: DB per userId first; message prefers DB, then env, then default.
  */
-async function resolveTriggerConfig() {
+async function resolveTriggerConfig(userId) {
   let doc;
   try {
-    doc = await AgentTriggerConfig.findById(AGENT_TRIGGER_CONFIG_ID)
+    const uid =
+      typeof userId === "string"
+        ? new mongoose.Types.ObjectId(userId)
+        : userId;
+    doc = await AgentTriggerConfig.findOne({ userId: uid })
       .select("apiUrl triggerToken triggerMessage")
       .lean();
   } catch (err) {
@@ -66,7 +68,7 @@ export async function triggerAgentOnProposalSubmit({
   attachmentFilePaths,
   userId,
 }) {
-  const resolved = await resolveTriggerConfig();
+  const resolved = await resolveTriggerConfig(userId);
 
   if (!resolved) {
     if (process.env.NODE_ENV === "development") {
