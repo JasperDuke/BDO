@@ -12,9 +12,7 @@ async function resolveTriggerConfig(userId) {
   let doc;
   try {
     const uid =
-      typeof userId === "string"
-        ? new mongoose.Types.ObjectId(userId)
-        : userId;
+      typeof userId === "string" ? new mongoose.Types.ObjectId(userId) : userId;
     doc = await AgentTriggerConfig.findOne({ userId: uid })
       .select("apiUrl triggerToken triggerMessage")
       .lean();
@@ -23,7 +21,8 @@ async function resolveTriggerConfig(userId) {
     doc = null;
   }
 
-  const dbMessage = doc?.triggerMessage != null ? String(doc.triggerMessage).trim() : "";
+  const dbMessage =
+    doc?.triggerMessage != null ? String(doc.triggerMessage).trim() : "";
   const message =
     dbMessage ||
     process.env.AGENT_TRIGGER_MESSAGE?.trim() ||
@@ -60,13 +59,15 @@ async function resolveTriggerConfig(userId) {
  *
  * @param {Object} params
  * @param {string} params.notificationEmail - Result notification email
- * @param {string[]} params.attachmentFilePaths - Absolute paths from multer (saved under public/uploads)
+ * @param {string[]} params.attachmentFilePaths - Absolute paths for webhook `attachments` URLs: all files if Records tab off; PDF-only if Records tab on (xlsx sent only via extractedExcelData)
  * @param {string} params.userId - Upload owner id (for public attachment URLs)
+ * @param {Array<{ originalFileName: string, sheets?: Record<string, unknown[]>, error?: string }>} [params.extractedExcelData] - One entry per .xlsx when Records on: `sheets` maps tab name → row objects; `originalFileName` is the upload’s real client filename
  */
 export async function triggerAgentOnProposalSubmit({
   notificationEmail,
   attachmentFilePaths,
   userId,
+  extractedExcelData,
 }) {
   const resolved = await resolveTriggerConfig(userId);
 
@@ -96,6 +97,11 @@ export async function triggerAgentOnProposalSubmit({
     attachments: attachmentUrls,
     message,
   };
+  if (Array.isArray(extractedExcelData) && extractedExcelData.length > 0) {
+    payload.extractedExcelData = extractedExcelData;
+  }
+  console.log(extractedExcelData);
+  const timeoutMs = extractedExcelData?.length > 0 ? 120000 : 10000;
 
   try {
     const response = await axios.post(apiUrl, payload, {
@@ -103,7 +109,9 @@ export async function triggerAgentOnProposalSubmit({
         Authorization: triggerToken,
         "Content-Type": "application/json",
       },
-      timeout: 10000,
+      timeout: timeoutMs,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     });
     if (process.env.NODE_ENV === "development") {
       console.log(

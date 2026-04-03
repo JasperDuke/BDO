@@ -123,7 +123,7 @@ export function FileUploadPanel() {
     setUploading(true);
     setProgress(0);
     try {
-      await api.post("/upload", fd, {
+      const response = await api.post("/upload", fd, {
         onUploadProgress: (ev) => {
           if (ev.total) setProgress(Math.round((ev.loaded / ev.total) * 100));
         },
@@ -133,6 +133,7 @@ export function FileUploadPanel() {
         msg: "Data processing started. You will receive your result PDF file in your email.",
         sev: "success",
       });
+      console.log("response", response);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data

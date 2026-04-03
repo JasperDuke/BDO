@@ -4,8 +4,18 @@ import fs from "fs";
 import multer from "multer";
 import { requireAuth } from "../middleware/authJwt.js";
 import { triggerAgentOnProposalSubmit } from "../utils/webhook.js";
+import {
+  extractXlsxAllSheets,
+  isPdfFile,
+  isXlsxFile,
+} from "../utils/excelExtract.js";
 
 export const uploadRouter = Router();
+
+/** Multer’s client original name (falls back to stored filename). */
+function uploadedOriginalName(f) {
+  return String(f.originalname || f.filename || "").trim() || "unknown";
+}
 
 const ALLOWED_MIMES = new Set([
   "application/pdf",
@@ -32,7 +42,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter(req, file, cb) {
     const ext = path.extname(file.originalname || "").toLowerCase();
     const okMime = ALLOWED_MIMES.has(file.mimetype);
@@ -84,10 +94,54 @@ uploadRouter.post("/", (req, res) => {
 
     const fileList = Array.isArray(files) ? files : [];
 
+    /**
+     * Records enabled: webhook `attachments` = PDF URLs only; xlsx content only in `extractedExcelData`.
+     * Records disabled: `attachments` = all files (pdf + xlsx); no extraction.
+     */
+    const showRecords = req.user.showRecordsTab !== false;
+
+    let extractedExcelData;
+    let attachmentFilePaths;
+
+    if (showRecords) {
+      extractedExcelData = [];
+      for (const f of fileList) {
+        if (!isXlsxFile(f)) continue;
+        try {
+          const sheets = extractXlsxAllSheets(f.path);
+          /** Nest under `sheets` so a tab name can never overwrite `originalFileName`. */
+          extractedExcelData.push({
+            originalFileName: uploadedOriginalName(f),
+            sheets,
+          });
+        } catch (e) {
+          console.error(
+            "[upload] xlsx extract failed:",
+            uploadedOriginalName(f),
+            e,
+          );
+          extractedExcelData.push({
+            originalFileName: uploadedOriginalName(f),
+            error: String(e?.message || e),
+          });
+        }
+      }
+      if (extractedExcelData.length === 0) {
+        extractedExcelData = undefined;
+      }
+      attachmentFilePaths = fileList
+        .filter((f) => isPdfFile(f))
+        .map((f) => f.path);
+    } else {
+      extractedExcelData = undefined;
+      attachmentFilePaths = fileList.map((f) => f.path);
+    }
+
     const webhookBody = {
       notificationEmail,
-      attachmentFilePaths: fileList.map((f) => f.path),
+      attachmentFilePaths,
       userId: req.user._id.toString(),
+      ...(extractedExcelData?.length ? { extractedExcelData } : {}),
     };
 
     const webhookResult = await triggerAgentOnProposalSubmit(webhookBody);
@@ -104,6 +158,8 @@ uploadRouter.post("/", (req, res) => {
       fileCount: fileList.length,
       uploadedAt: new Date().toISOString(),
       webhook: webhookResult,
+      extractedExcelData,
+      attachmentFilePaths,
     });
   });
 });
