@@ -425,32 +425,98 @@ export default function ArtemisAdminPage() {
       setPasteError("Invalid JSON. Check commas and quotes.");
       return;
     }
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
-      setPasteError("JSON must be a single object (not an array).");
+    if (parsed === null || typeof parsed !== "object") {
+      setPasteError("JSON must be a single object or an array of objects.");
       return;
     }
-    const body = sanitizeImportedPayload(parsed as Record<string, unknown>);
-    const verr = validateImportedRecord(body);
-    if (verr) {
-      setPasteError(verr);
+
+    const items: Record<string, unknown>[] = Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>[])
+      : [parsed as Record<string, unknown>];
+
+    if (items.length === 0) {
+      setPasteError("Array must contain at least one record.");
       return;
     }
+
+    for (let i = 0; i < items.length; i++) {
+      const el = items[i];
+      if (el === null || typeof el !== "object" || Array.isArray(el)) {
+        setPasteError(`Item at index ${i} must be a JSON object.`);
+        return;
+      }
+      const body = sanitizeImportedPayload(el as Record<string, unknown>);
+      const verr = validateImportedRecord(body);
+      if (verr) {
+        setPasteError(`Item ${i}: ${verr}`);
+        return;
+      }
+    }
+
+    const payloads = items.map((el) =>
+      sanitizeImportedPayload(el as Record<string, unknown>),
+    );
+
     try {
-      const { data } = await internalArtemisApi.create(body);
+      if (payloads.length === 1) {
+        const { data } = await internalArtemisApi.create(payloads[0]);
+        setPasteOpen(false);
+        setPasteText("");
+        setSnack("Record created from JSON");
+        setImportDrawerRecord(data as ArtemisRecord);
+        setImportDrawerOpen(true);
+        load();
+        return;
+      }
+
+      const { data } = await internalArtemisApi.createBulk(payloads);
+      const created = data.created ?? [];
+      const errs = data.errors ?? [];
+
+      if (errs.length > 0 && created.length === 0) {
+        setPasteError(
+          errs.map((e) => `[${e.index}] ${e.message}`).join("\n") ||
+            "Import failed",
+        );
+        return;
+      }
+
       setPasteOpen(false);
       setPasteText("");
-      setSnack("Record created from JSON");
-      setImportDrawerRecord(data as ArtemisRecord);
-      setImportDrawerOpen(true);
+      if (errs.length > 0) {
+        setError(
+          `Import finished with ${errs.length} error(s): ${errs
+            .map((e) => `[${e.index}] ${e.message}`)
+            .join("; ")}`,
+        );
+      }
+      setSnack(
+        errs.length > 0
+          ? `Imported ${created.length} of ${payloads.length} record(s)`
+          : `Imported ${created.length} record(s) from JSON`,
+      );
+      const last = created[created.length - 1] as ArtemisRecord | undefined;
+      if (last) {
+        setImportDrawerRecord(last);
+        setImportDrawerOpen(true);
+      }
       load();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } }).response
-        ?.data?.message;
-      setPasteError(msg || "Save failed");
+      const res = (e as {
+        response?: {
+          data?: {
+            message?: string;
+            errors?: { index: number; message: string }[];
+          };
+        };
+      }).response?.data;
+      if (res?.errors?.length) {
+        setPasteError(
+          res.errors.map((x) => `[${x.index}] ${x.message}`).join("\n"),
+        );
+        return;
+      }
+      setPasteError(res?.message || "Save failed");
     }
   }
 
@@ -994,15 +1060,16 @@ export default function ArtemisAdminPage() {
             color="text.secondary"
             sx={{ mb: 1.5, lineHeight: 1.6 }}
           >
-            Use the <strong>export format</strong> (PascalCase + underscores):{" "}
-            <code>Metadata</code>, <code>Entity_Information</code>,{" "}
+            Paste one object or a <strong>JSON array</strong> of objects (up to
+            500 per import). Use the <strong>export format</strong> (PascalCase +
+            underscores): <code>Metadata</code>, <code>Entity_Information</code>,{" "}
             <code>Screening_And_Search_Conclusion</code>,{" "}
             <code>Risk_Assessment</code>, <code>Approval_History</code>,{" "}
-            <code>Modification_Details</code>. You can also paste the internal
-            API shape (<code>metadata</code>, <code>entityInformation</code>,
-            …). <code>_id</code>, <code>__v</code>, <code>_searchText</code>,
-            and top-level timestamps are stripped before save; the server maps
-            export keys to the database model.
+            <code>Modification_Details</code>. You can also use the internal API
+            shape (<code>metadata</code>, <code>entityInformation</code>, …).{" "}
+            <code>_id</code>, <code>__v</code>, <code>_searchText</code>, and
+            top-level timestamps are stripped before save; the server maps export
+            keys to the database model.
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
             <Button size="small" variant="outlined" onClick={fillJsonTemplate}>
