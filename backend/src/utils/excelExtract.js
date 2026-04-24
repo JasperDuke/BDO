@@ -22,6 +22,14 @@ export function isPdfFile(file) {
 }
 
 /**
+ * @param {Express.Multer.File} file
+ */
+export function isMdFile(file) {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+  return ext === ".md" || file.mimetype === "text/markdown";
+}
+
+/**
  * Read one .xlsx from disk: every sheet → array of row objects (first row = headers).
  * Sheet names are used as keys on the returned object.
  *

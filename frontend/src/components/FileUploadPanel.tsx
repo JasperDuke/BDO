@@ -35,6 +35,7 @@ const ACCEPT = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
     ".xlsx",
   ],
+  "text/markdown": [".md"],
 };
 
 const SUCCESS_TOAST_MS = 9000;
@@ -46,7 +47,7 @@ const FILE_LIST_PANEL_MIN = 140;
 const FILE_LIST_MAX_CSS = "min(50vh, 240px)";
 
 function fileIcon(mime: string) {
-  if (mime === "application/pdf") return <FiFileText size={18} />;
+  if (mime === "application/pdf" || mime === "text/markdown") return <FiFileText size={18} />;
   if (mime.includes("spreadsheet")) return <RiFileExcelLine size={18} />;
   return <FiGrid size={18} />;
 }
@@ -85,6 +86,7 @@ export function FileUploadPanel() {
     const allowed = new Set([
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/markdown",
     ]);
     const next: File[] = [];
     const rejected: string[] = [];
@@ -94,7 +96,7 @@ export function FileUploadPanel() {
     });
     if (rejected.length) {
       setSnack({
-        msg: `Only PDF and Excel allowed: skipped ${rejected.join(", ")}`,
+        msg: `Only PDF, Excel and Markdown allowed: skipped ${rejected.join(", ")}`,
         sev: "error",
       });
     }
@@ -211,7 +213,7 @@ export function FileUploadPanel() {
                   color="text.secondary"
                   sx={{ display: "block", lineHeight: 1.6 }}
                 >
-                  PDF and Excel (.xlsx) only. Files you add appear in the list
+                  PDF, Excel (.xlsx) and Markdown (.md) only. Files you add appear in the list
                   on the right.
                 </Typography>
               </Box>
@@ -445,7 +447,7 @@ export function FileUploadPanel() {
                       sx={{ maxWidth: 280, lineHeight: 1.55 }}
                     >
                       Use <strong>Choose files</strong> or drag and drop on the
-                      left. Only PDF and Excel (.xlsx) are accepted.
+                      left. Only PDF, Excel (.xlsx) and Markdown (.md) are accepted.
                     </Typography>
                   </Box>
                 ) : (

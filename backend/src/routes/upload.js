@@ -8,6 +8,7 @@ import {
   extractXlsxAllSheets,
   isPdfFile,
   isXlsxFile,
+  isMdFile,
 } from "../utils/excelExtract.js";
 
 export const uploadRouter = Router();
@@ -20,6 +21,7 @@ function uploadedOriginalName(f) {
 const ALLOWED_MIMES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/markdown",
 ]);
 
 function uploadsRoot() {
@@ -46,11 +48,11 @@ const upload = multer({
   fileFilter(req, file, cb) {
     const ext = path.extname(file.originalname || "").toLowerCase();
     const okMime = ALLOWED_MIMES.has(file.mimetype);
-    const okExt = ext === ".pdf" || ext === ".xlsx";
+    const okExt = ext === ".pdf" || ext === ".xlsx" || ext === ".md";
     if (okMime || okExt) {
       cb(null, true);
     } else {
-      cb(new Error("Only PDF and XLSX files are allowed"));
+      cb(new Error("Only PDF, XLSX and MD files are allowed"));
     }
   },
 });
@@ -60,7 +62,7 @@ uploadRouter.use(requireAuth);
 uploadRouter.post("/", (req, res) => {
   upload.array("files", 20)(req, res, async (err) => {
     if (err) {
-      if (err.message === "Only PDF and XLSX files are allowed") {
+      if (err.message === "Only PDF, XLSX and MD files are allowed") {
         return res.status(400).json({ message: err.message });
       }
       if (err instanceof multer.MulterError) {
@@ -95,8 +97,8 @@ uploadRouter.post("/", (req, res) => {
     const fileList = Array.isArray(files) ? files : [];
 
     /**
-     * Records enabled: webhook `attachments` = PDF URLs only; xlsx content only in `extractedExcelData`.
-     * Records disabled: `attachments` = all files (pdf + xlsx); no extraction.
+     * Records enabled: webhook `attachments` = PDF and MD URLs only; xlsx content only in `extractedExcelData`.
+     * Records disabled: `attachments` = all files (pdf + md + xlsx); no extraction.
      */
     const showRecords = req.user.showRecordsTab !== false;
 
@@ -130,7 +132,7 @@ uploadRouter.post("/", (req, res) => {
         extractedExcelData = undefined;
       }
       attachmentFilePaths = fileList
-        .filter((f) => isPdfFile(f))
+        .filter((f) => isPdfFile(f) || isMdFile(f))
         .map((f) => f.path);
     } else {
       extractedExcelData = undefined;
