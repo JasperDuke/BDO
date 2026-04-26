@@ -38,6 +38,25 @@ const ACCEPT = {
   "text/markdown": [".md"],
 };
 
+/**
+ * Use extensions only in `accept`. Windows otherwise duplicates each type
+ * (MIME + .ext). `.pdf,.xlsx,.md` yields one combined filter and includes .md.
+ */
+const ACCEPT_ATTR = Object.values(ACCEPT)
+  .flat()
+  .join(",");
+
+const ACCEPT_EXTS = new Set(
+  Object.values(ACCEPT)
+    .flat()
+    .map((e) => e.toLowerCase()),
+);
+
+function fileExt(name: string) {
+  const i = name.lastIndexOf(".");
+  return i >= 0 ? name.slice(i).toLowerCase() : "";
+}
+
 const SUCCESS_TOAST_MS = 9000;
 
 /** Compact drop zone; list area scrolls below */
@@ -91,7 +110,10 @@ export function FileUploadPanel() {
     const next: File[] = [];
     const rejected: string[] = [];
     arr.forEach((f) => {
-      if (allowed.has(f.type)) next.push(f);
+      const byMime = allowed.has(f.type);
+      // e.g. .md often comes as text/plain or "" on Windows; extension match is reliable.
+      const byExt = ACCEPT_EXTS.has(fileExt(f.name));
+      if (byMime || byExt) next.push(f);
       else rejected.push(f.name);
     });
     if (rejected.length) {
@@ -259,7 +281,7 @@ export function FileUploadPanel() {
                         type="file"
                         hidden
                         multiple
-                        accept={Object.keys(ACCEPT).join(",")}
+                        accept={ACCEPT_ATTR}
                         onChange={(e) =>
                           e.target.files && addFiles(e.target.files)
                         }
