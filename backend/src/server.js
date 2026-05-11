@@ -9,6 +9,7 @@ import { uploadRouter } from "./routes/upload.js";
 import { artemisPublicRouter } from "./routes/artemisPublic.js";
 import { artemisInternalRouter } from "./routes/artemisInternal.js";
 import { agentTriggerConfigRouter } from "./routes/agentTriggerConfig.js";
+import { daveRouter } from "./routes/dave.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -33,6 +34,7 @@ app.use("/api/upload", uploadRouter);
 app.use("/api/artemis", artemisPublicRouter);
 app.use("/api/internal/artemis", artemisInternalRouter);
 app.use("/api/agent-trigger-config", agentTriggerConfigRouter);
+app.use("/api/v2", daveRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
