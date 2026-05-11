@@ -8,6 +8,21 @@ export const daveRouter = express.Router();
 const assetDataPath = path.join(process.cwd(), "..", "asset_data.json");
 const assetChangesPath = path.join(process.cwd(), "..", "asset_changes.json");
 
+// Middleware to enforce fixed API Key and Secret
+daveRouter.use((req, res, next) => {
+  const apiKey = req.headers["api-key"];
+  const apiSecret = req.headers["api-secret"];
+
+  if (
+    apiKey !== "Qiszsuyl2xgAW_y9ahg5cwXm2pWb7NHKHsgvGJ7SIsU" ||
+    apiSecret !== "Xdh_3Oq6-iQM2aBHpXKtSY_lqB69b9wMbTZ_rfoEXas"
+  ) {
+    return res.status(401).json({ error: "Unauthorized: Invalid or missing API Key/Secret" });
+  }
+
+  next();
+});
+
 // POST /api/v2/assets/devices
 daveRouter.post("/assets/devices", (req, res) => {
   try {
