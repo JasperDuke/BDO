@@ -7,6 +7,48 @@ export const daveRouter = express.Router();
 // The json files are located in the root of the BDO workspace
 const assetDataPath = path.join(process.cwd(), "..", "asset_data.json");
 const assetChangesPath = path.join(process.cwd(), "..", "asset_changes.json");
+const ryb1240AssetDataPath = path.join(process.cwd(), "..", "RYB1240_asset_data.json");
+const ryb1240AssetChangesPath = path.join(process.cwd(), "..", "RYB1240_asset_changes.json");
+const ryb1241AssetDataPath = path.join(process.cwd(), "..", "RYB1241_asset_data.json");
+const ryb1241AssetChangesPath = path.join(process.cwd(), "..", "RYB1241_asset_changes.json");
+const ryj0116AssetDataPath = path.join(process.cwd(), "..", "RYJ0116_asset_data.json");
+const ryj0116AssetChangesPath = path.join(process.cwd(), "..", "RYJ0116_asset_changes.json");
+const ryn0689AssetDataPath = path.join(process.cwd(), "..", "RYN0689_asset_data.json");
+const ryn0689AssetChangesPath = path.join(process.cwd(), "..", "RYN0689_asset_changes.json");
+const rys1016AssetDataPath = path.join(process.cwd(), "..", "RYS1016_asset_data.json");
+const rys1016AssetChangesPath = path.join(process.cwd(), "..", "RYS1016_asset_changes.json");
+
+const getAssetJsonPath = (siteId, type) => {
+  const normalizedSiteId = (siteId || "").toUpperCase();
+
+  switch (normalizedSiteId) {
+    case "RYB1240":
+      return type === "changes" ? ryb1240AssetChangesPath : ryb1240AssetDataPath;
+    case "RYB1241":
+      return type === "changes" ? ryb1241AssetChangesPath : ryb1241AssetDataPath;
+    case "RYJ0116":
+      return type === "changes" ? ryj0116AssetChangesPath : ryj0116AssetDataPath;
+    case "RYN0689":
+      return type === "changes" ? ryn0689AssetChangesPath : ryn0689AssetDataPath;
+    case "RYS1016":
+      return type === "changes" ? rys1016AssetChangesPath : rys1016AssetDataPath;
+    default:
+      return type === "changes" ? assetChangesPath : assetDataPath;
+  }
+};
+
+const extractCustomSiteId = (query = "") => {
+  if (typeof query !== "string") return null;
+
+  // Supports both:
+  // "adapters_data.gui.custom_site_id" == "RYB1240"
+  // \"adapters_data.gui.custom_site_id\" == \"RYB1240\"
+  const match =
+    query.match(/custom_site_id"\s*==\s*"([^"]+)"/) ||
+    query.match(/custom_site_id\\+"\s*==\s*\\+"([^\\"]+)/);
+
+  return match?.[1] || null;
+};
 
 // Middleware to enforce fixed API Key and Secret
 daveRouter.use((req, res, next) => {
@@ -34,14 +76,15 @@ daveRouter.post("/assets/devices", (req, res) => {
       return res.status(400).json({ error: "Missing query parameter in payload." });
     }
 
-    const data = fs.readFileSync(assetDataPath, "utf-8");
-    let parsedData = JSON.parse(data);
-
     // Extract custom_site_id from the AQL query string
     // e.g. "adapters_data.gui.custom_site_id" == "RYN0615"
-    const siteIdMatch = req.body.query.match(/custom_site_id\\?"\s*==\s*\\?"([^\\"]+)\\?"/);
-    if (siteIdMatch && siteIdMatch[1]) {
-      const stationId = siteIdMatch[1];
+    const stationId = extractCustomSiteId(req.body.query);
+    const selectedAssetDataPath = getAssetJsonPath(stationId, "data");
+
+    const data = fs.readFileSync(selectedAssetDataPath, "utf-8");
+    let parsedData = JSON.parse(data);
+
+    if (stationId) {
       parsedData.assets = parsedData.assets.filter(
         (asset) => asset["adapters_data.gui.custom_site_id"] === stationId
       );
@@ -66,8 +109,12 @@ daveRouter.post("/assets/devices", (req, res) => {
 // POST /api/v2/assets/devices/asset_investigation/:internal_axon_id
 daveRouter.post("/assets/devices/asset_investigation/:internal_axon_id", (req, res) => {
   try {
+    const customSiteIdFromBody = req.body?.custom_site_id;
+    const stationId = customSiteIdFromBody || extractCustomSiteId(req.body?.query);
+    const selectedAssetChangesPath = getAssetJsonPath(stationId, "changes");
+
     const { internal_axon_id } = req.params;
-    const data = fs.readFileSync(assetChangesPath, "utf-8");
+    const data = fs.readFileSync(selectedAssetChangesPath, "utf-8");
     let parsedData = JSON.parse(data);
 
     // Filter investigation fields by the asset ID in the path
