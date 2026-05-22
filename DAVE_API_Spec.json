@@ -79,7 +79,7 @@
     "/assets/devices/asset_investigation/{internal_axon_id}": {
       "post": {
         "summary": "Get Asset Changes",
-        "description": "Retrieve asset change information by using the Internal Axon ID obtained from the Get Asset Data endpoint.",
+        "description": "Retrieve asset change information by using the Internal Axon ID obtained from the Get Asset Data endpoint. Include `custom_site_id` (Site ID / Station ID) in the request body to select the correct station dataset. If omitted, the server may derive the site ID from an AQL `query` string when provided.",
         "tags": [
           "Assets Investigation"
         ],
@@ -109,6 +109,7 @@
                 "$ref": "#/components/schemas/GetAssetChangesRequest"
               },
               "example": {
+                "custom_site_id": "RYN0615",
                 "time_range": {
                   "period": {
                     "relative_type": "last",
@@ -248,6 +249,14 @@
       "GetAssetChangesRequest": {
         "type": "object",
         "properties": {
+          "custom_site_id": {
+            "type": "string",
+            "description": "Site ID (Station ID) used to scope asset change data to the correct station. Should match the value used when calling Get Asset Data (e.g. RYN0615)."
+          },
+          "query": {
+            "type": "string",
+            "description": "Optional Axonius AQL query string. Used to derive custom_site_id when custom_site_id is not provided in the body."
+          },
           "time_range": {
             "type": "object",
             "properties": {
