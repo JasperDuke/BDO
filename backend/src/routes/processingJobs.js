@@ -61,16 +61,6 @@ async function applyStaleTimeout(job) {
   return job;
 }
 
-/** Optional: set AGENT_CALLBACK_TOKEN to require Authorization on agent callbacks. */
-function isAuthorizedCallback(req) {
-  const expected = process.env.AGENT_CALLBACK_TOKEN?.trim();
-  if (!expected) return true;
-
-  const raw = String(req.headers.authorization || '').trim();
-  const token = raw.toLowerCase().startsWith('bearer ') ? raw.slice(7).trim() : raw;
-  return token === expected;
-}
-
 function pickBodyString(body, ...keys) {
   for (const key of keys) {
     const value = String(body?.[key] ?? '').trim();
@@ -89,12 +79,8 @@ function resolveEventId(req) {
   return String(req.params?.eventId ?? '').trim();
 }
 
-/** Agent result callback — POST JSON with eventId + result links (no JWT). */
+/** Agent result callback — POST JSON with eventId + result links (no auth). */
 async function handleAgentResult(req, res) {
-  if (!isAuthorizedCallback(req)) {
-    return res.status(401).json({ message: 'Invalid callback token' });
-  }
-
   const eventId = resolveEventId(req);
   if (!eventId) {
     return res.status(400).json({ message: 'eventId is required in request body' });
