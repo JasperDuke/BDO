@@ -91,7 +91,8 @@ export async function triggerAgentOnProposalSubmit({
   console.log("[webhook] Attachment URLs", attachmentUrls);
 
   const payload = {
-    eventId,
+    event_id: eventId,
+    processing_job_id: eventId,
     email: notificationEmail,
     attachments: attachmentUrls,
     message,
@@ -101,7 +102,7 @@ export async function triggerAgentOnProposalSubmit({
   }
   console.log(extractedExcelData);
   const timeoutMs = 60 * 60 * 1000;
-  console.log("API URL", apiUrl);
+  console.log("API URL", apiUrl, triggerToken, payload);
   try {
     const response = await axios.post(apiUrl, payload, {
       headers: {

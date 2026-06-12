@@ -12,3 +12,8 @@ export async function fetchProcessingJobs(params?: { limit?: number; skip?: numb
   });
   return data;
 }
+
+export async function deleteProcessingJob(id: string) {
+  const { data } = await api.delete<{ ok: boolean; id: string }>(`/processing-jobs/${id}`);
+  return data;
+}

@@ -225,6 +225,34 @@ processingJobsRouter.get('/', async (req, res) => {
   }
 });
 
+/** Delete a processing job from history (must belong to user). */
+processingJobsRouter.delete('/:id', async (req, res) => {
+  try {
+    const job = await ProcessingJob.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
+    if (!job) {
+      return res.status(404).json({ message: 'Processing job not found' });
+    }
+
+    console.log('[processing-jobs] History entry deleted', {
+      jobId: job._id.toString(),
+      eventId: job.eventId,
+      userId: job.userId.toString(),
+      status: job.status,
+    });
+
+    res.json({ ok: true, id: job._id.toString() });
+  } catch (e) {
+    if (e.name === 'CastError') {
+      return res.status(404).json({ message: 'Processing job not found' });
+    }
+    console.error('[processing-jobs] delete error:', e);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 /** Poll a single job by Mongo id (must belong to user). */
 processingJobsRouter.get('/:id', async (req, res) => {
   try {

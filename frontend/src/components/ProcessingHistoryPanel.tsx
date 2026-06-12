@@ -20,9 +20,9 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { FiFileText, FiRefreshCw, FiX } from "react-icons/fi";
+import { FiFileText, FiRefreshCw, FiTrash2, FiX } from "react-icons/fi";
 import { RiFileExcelLine } from "react-icons/ri";
-import { fetchProcessingJobs } from "@/lib/processingJobApi";
+import { deleteProcessingJob, fetchProcessingJobs } from "@/lib/processingJobApi";
 import type { ProcessingJob, ProcessingJobStatus } from "@/types/processingJob";
 
 const POLL_INTERVAL_MS = 5000;
@@ -57,7 +57,27 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
   const [jobs, setJobs] = useState<ProcessingJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ProcessingJob | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const focusRowRef = useRef<HTMLTableRowElement | null>(null);
+
+  const handleDelete = async (job: ProcessingJob) => {
+    const label = fileListText(job);
+    const ok = window.confirm(
+      `Remove this entry from history?\n\n${label}\n${formatDate(job.createdAt)}`,
+    );
+    if (!ok) return;
+
+    setDeletingId(job.id);
+    try {
+      await deleteProcessingJob(job.id);
+      setJobs((prev) => prev.filter((j) => j.id !== job.id));
+      if (selected?.id === job.id) setSelected(null);
+    } catch (err) {
+      console.error("[ProcessingHistory] delete failed", err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -167,6 +187,7 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
                 <TableCell>Email</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Result</TableCell>
+                <TableCell align="right" width={48} />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -222,6 +243,17 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
                           {job.errorMessage || "Failed"}
                         </Typography>
                       )}
+                    </TableCell>
+                    <TableCell align="right" padding="checkbox">
+                      <IconButton
+                        size="small"
+                        aria-label={`Delete history entry ${fileListText(job)}`}
+                        disabled={deletingId === job.id}
+                        onClick={() => handleDelete(job)}
+                        sx={{ color: "text.secondary" }}
+                      >
+                        <FiTrash2 size={16} />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 );
