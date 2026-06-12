@@ -1,6 +1,5 @@
 import axios from "axios";
 import path from "node:path";
-import crypto from "node:crypto";
 import mongoose from "mongoose";
 import { AgentTriggerConfig } from "../models/AgentTriggerConfig.js";
 import { DEFAULT_AGENT_TRIGGER_MESSAGE } from "./agentTriggerDefaults.js";
@@ -60,13 +59,15 @@ async function resolveTriggerConfig(userId) {
  * @param {Object} params
  * @param {string} params.notificationEmail - Result notification email
  * @param {string[]} params.attachmentFilePaths - Absolute paths for webhook `attachments` URLs: all files if Records tab off; PDF and MD-only if Records tab on (xlsx sent only via extractedExcelData)
- * @param {string} params.userId - Upload owner id (for public attachment URLs)
+ * @param {string} params.userId - Upload owner id (for public attachment URLs only; not sent to agent)
+ * @param {string} params.eventId - Correlation id for agent result callback
  * @param {Array<{ originalFileName: string, sheets?: Record<string, unknown[]>, error?: string }>} [params.extractedExcelData] - One entry per .xlsx when Records on: `sheets` maps tab name → row objects; `originalFileName` is the upload’s real client filename
  */
 export async function triggerAgentOnProposalSubmit({
   notificationEmail,
   attachmentFilePaths,
   userId,
+  eventId,
   extractedExcelData,
 }) {
   const resolved = await resolveTriggerConfig(userId);
@@ -77,12 +78,10 @@ export async function triggerAgentOnProposalSubmit({
         "[webhook] No trigger URL/token in database or env — skipping agent trigger",
       );
     }
-    return;
+    return { skipped: true, reason: "no_trigger_config" };
   }
 
   const { apiUrl, triggerToken, message } = resolved;
-
-  const eventId = `demoaml_event_${crypto.randomUUID()}`;
 
   const baseUrl = (process.env.API_PUBLIC_URL || "").replace(/\/$/, "");
   const filenames = attachmentFilePaths.map((f) => path.basename(f));
@@ -92,7 +91,7 @@ export async function triggerAgentOnProposalSubmit({
   console.log("[webhook] Attachment URLs", attachmentUrls);
 
   const payload = {
-    event_id: eventId,
+    eventId,
     email: notificationEmail,
     attachments: attachmentUrls,
     message,
@@ -101,8 +100,8 @@ export async function triggerAgentOnProposalSubmit({
     payload.extractedExcelData = extractedExcelData;
   }
   console.log(extractedExcelData);
-  const timeoutMs = extractedExcelData?.length > 0 ? 120000 : 10000;
-
+  const timeoutMs = 60 * 60 * 1000;
+  console.log("API URL", apiUrl);
   try {
     const response = await axios.post(apiUrl, payload, {
       headers: {
@@ -113,6 +112,7 @@ export async function triggerAgentOnProposalSubmit({
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
     });
+    console.log("response", response.data);
     if (process.env.NODE_ENV === "development") {
       console.log(
         "[webhook] Agent triggered successfully:",

@@ -18,16 +18,18 @@ import { useAuth } from "@/context/AuthContext";
 import { FileUploadPanel } from "@/components/FileUploadPanel";
 import { ArtemisDataViewer } from "@/components/ArtemisDataViewer";
 import { TemporalTriggerSetupPanel } from "@/components/TemporalTriggerSetupPanel";
+import { ProcessingHistoryPanel } from "@/components/ProcessingHistoryPanel";
 
 /** Readable width — not full-bleed, not phone-narrow */
 const CONTENT_MAX = 1100;
 
-type TabKey = "upload" | "records" | "temporal";
+type TabKey = "upload" | "history" | "records" | "temporal";
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("upload");
+  const [historyFocusJobId, setHistoryFocusJobId] = useState<string | null>(null);
 
   const showRecords = user?.showRecordsTab !== false;
 
@@ -54,10 +56,12 @@ export default function DashboardPage() {
 
   const tabHint =
     tab === "upload"
-      ? "Upload your file, then get the result in your email."
-      : tab === "records"
-        ? "Search saved AML records—the same data used when your upload is checked."
-        : "Configure the agent webhook URL and token used after uploads (database first, then env fallback).";
+      ? "Upload your file — you will be taken to History to track processing."
+      : tab === "history"
+        ? "Track processing status and open results when ready. Updates every 5 seconds."
+        : tab === "records"
+          ? "Search saved AML records—the same data used when your upload is checked."
+          : "Configure the agent webhook URL and token used after uploads (database first, then env fallback).";
 
   return (
     <Box minHeight="100vh" display="flex" flexDirection="column">
@@ -153,6 +157,7 @@ export default function DashboardPage() {
               }}
             >
               <Tab disableRipple label="Upload files" value="upload" />
+              <Tab disableRipple label="History" value="history" />
               {showRecords && (
                 <Tab disableRipple label="Records" value="records" />
               )}
@@ -180,7 +185,17 @@ export default function DashboardPage() {
               overflow: "hidden",
             }}
           >
-            {tab === "upload" && <FileUploadPanel />}
+            {tab === "upload" && (
+              <FileUploadPanel
+                onSubmitted={(jobId) => {
+                  setHistoryFocusJobId(jobId);
+                  setTab("history");
+                }}
+              />
+            )}
+            {tab === "history" && (
+              <ProcessingHistoryPanel focusJobId={historyFocusJobId} />
+            )}
             {tab === "records" && showRecords && <ArtemisDataViewer />}
             {tab === "temporal" && <TemporalTriggerSetupPanel />}
           </Box>

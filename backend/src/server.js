@@ -10,6 +10,7 @@ import { artemisPublicRouter } from "./routes/artemisPublic.js";
 import { artemisInternalRouter } from "./routes/artemisInternal.js";
 import { agentTriggerConfigRouter } from "./routes/agentTriggerConfig.js";
 import { daveRouter } from "./routes/dave.js";
+import { processingJobsRouter } from "./routes/processingJobs.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -31,6 +32,7 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/processing-jobs", processingJobsRouter);
 app.use("/api/artemis", artemisPublicRouter);
 app.use("/api/internal/artemis", artemisInternalRouter);
 app.use("/api/agent-trigger-config", agentTriggerConfigRouter);

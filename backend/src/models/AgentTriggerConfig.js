@@ -19,6 +19,4 @@ const agentTriggerConfigSchema = new Schema(
   { timestamps: true }
 );
 
-agentTriggerConfigSchema.index({ userId: 1 }, { unique: true });
-
 export const AgentTriggerConfig = mongoose.model('AgentTriggerConfig', agentTriggerConfigSchema);

@@ -4,6 +4,8 @@ import fs from "fs";
 import multer from "multer";
 import { requireAuth } from "../middleware/authJwt.js";
 import { triggerAgentOnProposalSubmit } from "../utils/webhook.js";
+import { ProcessingJob } from "../models/ProcessingJob.js";
+import { createProcessingEventId } from "./processingJobs.js";
 import {
   extractXlsxAllSheets,
   isPdfFile,
@@ -139,24 +141,90 @@ uploadRouter.post("/", (req, res) => {
       attachmentFilePaths = fileList.map((f) => f.path);
     }
 
+    const eventId = createProcessingEventId();
+    const userId = req.user._id.toString();
+    const uploadedFiles = fileList.map((f) => ({
+      originalname: f.originalname,
+      filename: f.filename,
+      size: f.size,
+      mimetype: f.mimetype,
+    }));
+
+    const job = await ProcessingJob.create({
+      userId: req.user._id,
+      eventId,
+      userName: req.user.name || "",
+      notificationEmail,
+      status: "processing",
+      uploadedFiles,
+      webhookTriggered: false,
+    });
+
+    console.log("[upload] Processing job created", {
+      eventId,
+      jobId: job._id.toString(),
+      userId,
+      userEmail: req.user.email,
+      userName: req.user.name || "",
+      uploadedFiles: uploadedFiles.map((f) => f.originalname),
+      notificationEmail,
+    });
+
     const webhookBody = {
       notificationEmail,
       attachmentFilePaths,
-      userId: req.user._id.toString(),
+      userId,
+      eventId,
       ...(extractedExcelData?.length ? { extractedExcelData } : {}),
     };
 
-    const webhookResult = await triggerAgentOnProposalSubmit(webhookBody);
+    let webhookResult;
+    try {
+      webhookResult = await triggerAgentOnProposalSubmit(webhookBody);
+      if (webhookResult?.skipped) {
+        job.status = "failed";
+        job.errorMessage =
+          "No agent trigger is configured. Set up Temporal Trigger or environment variables.";
+        job.completedAt = new Date();
+        await job.save();
+        return res.status(503).json({
+          message: job.errorMessage,
+          job: {
+            id: job._id.toString(),
+            eventId: job.eventId,
+            status: job.status,
+          },
+        });
+      }
+      job.webhookTriggered = true;
+      await job.save();
+    } catch (webhookErr) {
+      job.status = "failed";
+      job.errorMessage =
+        webhookErr.response?.data?.message ||
+        webhookErr.message ||
+        "Failed to trigger processing agent";
+      job.completedAt = new Date();
+      await job.save();
+      return res.status(502).json({
+        message: job.errorMessage,
+        job: {
+          id: job._id.toString(),
+          eventId: job.eventId,
+          status: job.status,
+        },
+      });
+    }
 
     res.status(201).json({
       ok: true,
+      job: {
+        id: job._id.toString(),
+        eventId: job.eventId,
+        status: job.status,
+      },
       notificationEmail,
-      files: fileList.map((f) => ({
-        originalname: f.originalname,
-        filename: f.filename,
-        size: f.size,
-        mimetype: f.mimetype,
-      })),
+      files: uploadedFiles,
       fileCount: fileList.length,
       uploadedAt: new Date().toISOString(),
       webhook: webhookResult,
