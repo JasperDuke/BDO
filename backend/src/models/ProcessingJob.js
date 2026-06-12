@@ -27,12 +27,12 @@ const processingJobSchema = new mongoose.Schema(
       index: true,
     },
     uploadedFiles: { type: [uploadedFileSchema], default: [] },
-    /** External URL to result PDF (agent-provided link) */
-    resultPdfUrl: { type: String, default: '' },
-    /** External URL to result XLSX (agent-provided link) */
-    resultXlsxUrl: { type: String, default: '' },
-    /** @deprecated Local filename — legacy jobs before URL-based results */
+    /** Local filename under uploads/{userId}/results/ */
     resultPdfFilename: { type: String, default: '' },
+    resultXlsxFilename: { type: String, default: '' },
+    /** @deprecated External URLs — kept for legacy jobs before local mirroring */
+    resultPdfUrl: { type: String, default: '' },
+    resultXlsxUrl: { type: String, default: '' },
     errorMessage: { type: String, default: '' },
     webhookTriggered: { type: Boolean, default: false },
     completedAt: { type: Date },

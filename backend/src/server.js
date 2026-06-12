@@ -25,7 +25,16 @@ app.use(
 app.use(express.json({ limit: "100mb" }));
 
 const publicDir = path.join(process.cwd(), "public");
-app.use("/uploads", express.static(path.join(publicDir, "uploads")));
+app.use(
+  "/uploads",
+  express.static(path.join(publicDir, "uploads"), {
+    setHeaders(res, filePath) {
+      if (filePath.toLowerCase().endsWith(".pdf")) {
+        res.setHeader("Content-Disposition", "inline");
+      }
+    },
+  }),
+);
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 

@@ -6,6 +6,11 @@ import {
   PROCESSING_TIMEOUT_MS,
 } from '../models/ProcessingJob.js';
 import { User } from '../models/User.js';
+import {
+  deleteStoredResultFiles,
+  downloadResultFile,
+  resultFilePaths,
+} from '../utils/resultFiles.js';
 
 export const processingJobsRouter = Router();
 
@@ -16,12 +21,14 @@ function serializeJob(doc, baseUrl) {
   let resultXlsxUrl = null;
 
   if (doc.status === 'completed') {
-    if (doc.resultPdfUrl) {
-      resultPdfUrl = doc.resultPdfUrl;
-    } else if (doc.resultPdfFilename) {
+    if (doc.resultPdfFilename) {
       resultPdfUrl = `${baseUrl}/uploads/${userId}/results/${doc.resultPdfFilename}`;
+    } else if (doc.resultPdfUrl) {
+      resultPdfUrl = doc.resultPdfUrl;
     }
-    if (doc.resultXlsxUrl) {
+    if (doc.resultXlsxFilename) {
+      resultXlsxUrl = `${baseUrl}/uploads/${userId}/results/${doc.resultXlsxFilename}`;
+    } else if (doc.resultXlsxUrl) {
       resultXlsxUrl = doc.resultXlsxUrl;
     }
   }
@@ -149,17 +156,47 @@ async function handleAgentResult(req, res) {
       });
     }
 
+    const userId = job.userId.toString();
+    const { pdfFilename, xlsxFilename, pdfPath, xlsxPath } = resultFilePaths(
+      userId,
+      eventId,
+    );
+
+    try {
+      await Promise.all([
+        downloadResultFile(pdfUrl, pdfPath),
+        downloadResultFile(xlsxUrl, xlsxPath),
+      ]);
+    } catch (downloadErr) {
+      console.error('[processing-jobs] Agent callback — download failed', {
+        ...debugBase,
+        pdfUrl,
+        xlsxUrl,
+        error: downloadErr.message,
+      });
+      return res.status(502).json({
+        message: 'Failed to download result files from provided URLs',
+      });
+    }
+
     job.status = 'completed';
-    job.resultPdfUrl = pdfUrl;
-    job.resultXlsxUrl = xlsxUrl;
+    job.resultPdfFilename = pdfFilename;
+    job.resultXlsxFilename = xlsxFilename;
+    job.resultPdfUrl = '';
+    job.resultXlsxUrl = '';
     job.errorMessage = '';
     job.completedAt = new Date();
     await job.save();
+
+    const baseUrl = publicBaseUrl();
+    const serialized = serializeJob(job, baseUrl);
 
     console.log('[processing-jobs] Agent result saved', {
       ...debugBase,
       pdfUrl,
       xlsxUrl,
+      resultPdfFilename: pdfFilename,
+      resultXlsxFilename: xlsxFilename,
       status: 'completed',
     });
 
@@ -167,8 +204,8 @@ async function handleAgentResult(req, res) {
       ok: true,
       eventId,
       status: job.status,
-      resultPdfUrl: job.resultPdfUrl,
-      resultXlsxUrl: job.resultXlsxUrl,
+      resultPdfUrl: serialized.resultPdfUrl,
+      resultXlsxUrl: serialized.resultXlsxUrl,
     });
   } catch (e) {
     console.error('[processing-jobs] result error:', e);
@@ -220,6 +257,19 @@ processingJobsRouter.delete('/:id', async (req, res) => {
     });
     if (!job) {
       return res.status(404).json({ message: 'Processing job not found' });
+    }
+
+    try {
+      await deleteStoredResultFiles(
+        job.userId.toString(),
+        job.resultPdfFilename,
+        job.resultXlsxFilename,
+      );
+    } catch (fileErr) {
+      console.warn('[processing-jobs] Could not delete result files', {
+        jobId: job._id.toString(),
+        error: fileErr.message,
+      });
     }
 
     console.log('[processing-jobs] History entry deleted', {
