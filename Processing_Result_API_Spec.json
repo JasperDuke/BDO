@@ -2,79 +2,93 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Demo AML API - Processing Result Callback",
-    "description": "Submit processing result files. Accepts a PDF file URL and an XLSX file URL. Requires `processing_job_id` from the agent context.",
-    "version": "1.3"
+    "version": "1.5.0",
+    "description": "Submit processing result files. Send `processing_job_id` from context plus public `pdf_url` and `xlsx_url`. No authentication required."
   },
   "servers": [
     {
-      "url": "https://api-demoaml.atenxion.ai/api/processing-jobs",
-      "description": "Demo AML Server"
+      "url": "https://api-demoaml.atenxion.ai/api",
+      "description": "Production Server"
     }
   ],
   "paths": {
-    "/result": {
+    "/processing-jobs/result": {
       "post": {
+        "operationId": "submitProcessingResult",
+        "tags": ["Processing Jobs"],
         "summary": "Submit processing result",
-        "description": "Submit the result files. Accepts `pdfUrl` and `xlsxUrl`. Requires `processing_job_id` from context.",
+        "description": "Submit result file URLs after processing completes. Use the exact `processing_job_id` from agent context. Both `pdf_url` and `xlsx_url` must be public http(s) links to the generated files.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  { "$ref": "#/components/schemas/SubmitProcessingResultRequest" },
-                  { "$ref": "#/components/schemas/SubmitProcessingFailureRequest" }
-                ]
+                "$ref": "#/components/schemas/SubmitProcessingResultRequest"
               },
-              "examples": {
-                "success": {
-                  "value": {
-                    "processing_job_id": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
-                    "pdfUrl": "https://storage.example.com/results/report.pdf",
-                    "xlsxUrl": "https://storage.example.com/results/report.xlsx"
-                  }
-                },
-                "failure": {
-                  "value": {
-                    "processing_job_id": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
-                    "status": "failed",
-                    "error": "Could not generate results from uploaded data"
-                  }
-                }
+              "example": {
+                "processing_job_id": "demoaml_event_a84d9c2a-e053-47a1-a07e-e76b9ddd856f",
+                "pdf_url": "https://api-qa.atenxion.ai/api/chat-history/get-file-data?filePath=./file_outputs/.../KYC_Report.pdf",
+                "xlsx_url": "https://api-qa.atenxion.ai/api/chat-history/get-file-data?filePath=./file_outputs/.../KYC_Appendix.xlsx"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Result stored",
+            "description": "Result stored successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SubmitProcessingResultResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitProcessingResultResponse"
+                },
+                "example": {
+                  "ok": true,
+                  "processing_job_id": "demoaml_event_a84d9c2a-e053-47a1-a07e-e76b9ddd856f",
+                  "status": "completed",
+                  "resultPdfUrl": "https://api-demoaml.atenxion.ai/uploads/USER_ID/results/demoaml_event_a84d9c2a-e053-47a1-a07e-e76b9ddd856f.pdf",
+                  "resultXlsxUrl": "https://api-demoaml.atenxion.ai/uploads/USER_ID/results/demoaml_event_a84d9c2a-e053-47a1-a07e-e76b9ddd856f.xlsx"
+                }
               }
             }
           },
           "200": {
-            "description": "Failure recorded",
+            "description": "Processing failure recorded",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SubmitProcessingFailureResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitProcessingFailureResponse"
+                },
+                "example": {
+                  "ok": true,
+                  "processing_job_id": "demoaml_event_a84d9c2a-e053-47a1-a07e-e76b9ddd856f",
+                  "status": "failed"
+                }
               }
             }
           },
           "400": {
-            "description": "Invalid request",
+            "description": "Bad Request — missing processing_job_id or result URLs",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "pdf_url and xlsx_url are required"
+                }
               }
             }
           },
           "404": {
-            "description": "Job not found",
+            "description": "Processing job not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "Processing job not found"
+                }
               }
             }
           },
@@ -82,7 +96,12 @@
             "description": "Job already completed",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "Job already completed"
+                }
               }
             }
           },
@@ -90,7 +109,12 @@
             "description": "Failed to download result files from provided URLs",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "Failed to download result files from provided URLs"
+                }
               }
             }
           },
@@ -98,7 +122,12 @@
             "description": "Internal server error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "Internal server error"
+                }
               }
             }
           }
@@ -108,33 +137,41 @@
   },
   "components": {
     "schemas": {
+      "ErrorMessage": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "SubmitProcessingResultRequest": {
         "type": "object",
-        "required": ["processing_job_id", "pdfUrl", "xlsxUrl"],
+        "required": ["processing_job_id", "pdf_url", "xlsx_url"],
         "properties": {
           "processing_job_id": {
             "type": "string",
-            "description": "Job id from agent context"
+            "description": "Exact job id from agent context (same value as event_id)"
           },
-          "pdfUrl": {
+          "pdf_url": {
             "type": "string",
             "format": "uri",
-            "description": "Public http(s) URL to the result PDF"
+            "description": "Public http(s) URL to the generated KYC PDF report"
           },
-          "xlsxUrl": {
+          "xlsx_url": {
             "type": "string",
             "format": "uri",
-            "description": "Public http(s) URL to the result XLSX"
+            "description": "Public http(s) URL to the generated KYC Excel appendix"
           }
         }
       },
       "SubmitProcessingFailureRequest": {
         "type": "object",
-        "required": ["processing_job_id"],
+        "required": ["processing_job_id", "status"],
         "properties": {
           "processing_job_id": {
             "type": "string",
-            "description": "Job id from agent context"
+            "description": "Exact job id from agent context"
           },
           "status": {
             "type": "string",
@@ -142,32 +179,50 @@
           },
           "error": {
             "type": "string",
-            "description": "Failure reason"
+            "description": "Human-readable failure reason"
           }
         }
       },
       "SubmitProcessingResultResponse": {
         "type": "object",
+        "required": ["ok", "processing_job_id", "status"],
         "properties": {
-          "ok": { "type": "boolean" },
-          "processing_job_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["completed"] },
-          "resultPdfUrl": { "type": "string", "format": "uri" },
-          "resultXlsxUrl": { "type": "string", "format": "uri" }
+          "ok": {
+            "type": "boolean"
+          },
+          "processing_job_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed"]
+          },
+          "resultPdfUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Demo AML hosted PDF URL"
+          },
+          "resultXlsxUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Demo AML hosted XLSX URL"
+          }
         }
       },
       "SubmitProcessingFailureResponse": {
         "type": "object",
+        "required": ["ok", "processing_job_id", "status"],
         "properties": {
-          "ok": { "type": "boolean" },
-          "processing_job_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["failed"] }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "message": { "type": "string" }
+          "ok": {
+            "type": "boolean"
+          },
+          "processing_job_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["failed"]
+          }
         }
       }
     }
