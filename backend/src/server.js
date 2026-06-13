@@ -29,8 +29,11 @@ app.use(
   "/uploads",
   express.static(path.join(publicDir, "uploads"), {
     setHeaders(res, filePath) {
-      if (filePath.toLowerCase().endsWith(".pdf")) {
+      const lower = filePath.toLowerCase();
+      if (lower.endsWith(".pdf")) {
         res.setHeader("Content-Disposition", "inline");
+      } else if (lower.endsWith(".xlsx")) {
+        res.setHeader("Content-Disposition", "attachment");
       }
     },
   }),

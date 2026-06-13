@@ -60,7 +60,7 @@ async function resolveTriggerConfig(userId) {
  * @param {string} params.notificationEmail - Result notification email
  * @param {string[]} params.attachmentFilePaths - Absolute paths for webhook `attachments` URLs: all files if Records tab off; PDF and MD-only if Records tab on (xlsx sent only via extractedExcelData)
  * @param {string} params.userId - Upload owner id (for public attachment URLs only; not sent to agent)
- * @param {string} params.eventId - Correlation id for agent result callback
+ * @param {string} params.eventId - Stored as eventId; sent to agent as processing_job_id
  * @param {Array<{ originalFileName: string, sheets?: Record<string, unknown[]>, error?: string }>} [params.extractedExcelData] - One entry per .xlsx when Records on: `sheets` maps tab name → row objects; `originalFileName` is the upload’s real client filename
  */
 export async function triggerAgentOnProposalSubmit({

@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
-  Drawer,
   IconButton,
   LinearProgress,
   Paper,
@@ -20,9 +18,9 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { FiFileText, FiRefreshCw, FiTrash2, FiX } from "react-icons/fi";
-import { RiFileExcelLine } from "react-icons/ri";
+import { FiRefreshCw, FiTrash2 } from "react-icons/fi";
 import { deleteProcessingJob, fetchProcessingJobs } from "@/lib/processingJobApi";
+import { ProcessingJobDetailDrawer } from "@/components/ProcessingJobDetailDrawer";
 import type { ProcessingJob, ProcessingJobStatus } from "@/types/processingJob";
 
 const POLL_INTERVAL_MS = 5000;
@@ -144,7 +142,7 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
           <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
             {hasProcessing
               ? "Processing in progress — updates every 5 seconds."
-              : "All your uploads and their results. Failed entries have no result links."}
+              : "Click a row to view uploaded files and results."}
           </Typography>
         </Box>
         <IconButton size="small" onClick={() => load()} disabled={loading} aria-label="Refresh history">
@@ -186,7 +184,7 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
                 <TableCell>Files</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell align="right">Result</TableCell>
+                <TableCell align="right">Open</TableCell>
                 <TableCell align="right" width={48} />
               </TableRow>
             </TableHead>
@@ -198,11 +196,11 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
                     key={job.id}
                     hover
                     ref={isFocus ? focusRowRef : undefined}
-                    sx={
-                      isFocus
-                        ? { bgcolor: "action.selected" }
-                        : undefined
-                    }
+                    onClick={() => setSelected(job)}
+                    sx={{
+                      cursor: "pointer",
+                      ...(isFocus ? { bgcolor: "action.selected" } : undefined),
+                    }}
                   >
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
                       {formatDate(job.createdAt)}
@@ -211,7 +209,7 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
                       <Typography
                         variant="body2"
                         title={fileListText(job)}
-                        sx={{ maxWidth: 220, wordBreak: "break-word" }}
+                        sx={{ maxWidth: 220, wordBreak: "break-word", color: "primary.main" }}
                       >
                         {fileListText(job)}
                       </Typography>
@@ -226,30 +224,26 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      {job.status === "completed" && job.resultPdfUrl ? (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => setSelected(job)}
-                        >
-                          View
-                        </Button>
-                      ) : job.status === "processing" ? (
-                        <Typography variant="caption" color="text.secondary">
-                          Processing…
-                        </Typography>
-                      ) : (
-                        <Typography variant="caption" color="error.main">
-                          {job.errorMessage || "Failed"}
-                        </Typography>
-                      )}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(job);
+                        }}
+                      >
+                        View
+                      </Button>
                     </TableCell>
                     <TableCell align="right" padding="checkbox">
                       <IconButton
                         size="small"
                         aria-label={`Delete history entry ${fileListText(job)}`}
                         disabled={deletingId === job.id}
-                        onClick={() => handleDelete(job)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(job);
+                        }}
                         sx={{ color: "text.secondary" }}
                       >
                         <FiTrash2 size={16} />
@@ -263,70 +257,11 @@ export function ProcessingHistoryPanel({ focusJobId = null }: Props) {
         </TableContainer>
       )}
 
-      <Drawer
-        anchor="right"
+      <ProcessingJobDetailDrawer
+        job={selected}
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        PaperProps={{ sx: { width: { xs: "100%", sm: 480 } } }}
-      >
-        {selected && (
-          <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}
-            >
-              <Typography variant="subtitle2" fontWeight={700}>
-                Results
-              </Typography>
-              <IconButton size="small" onClick={() => setSelected(null)} aria-label="Close">
-                <FiX />
-              </IconButton>
-            </Stack>
-            <Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
-              {selected.resultPdfUrl ? (
-                <Box
-                  component="iframe"
-                  src={selected.resultPdfUrl}
-                  title="Result PDF"
-                  sx={{ width: "100%", height: "100%", minHeight: 400, border: 0 }}
-                />
-              ) : (
-                <Alert severity="warning">No PDF available.</Alert>
-              )}
-            </Box>
-            <Stack spacing={1} sx={{ px: 2, pb: 2 }}>
-              {selected.resultPdfUrl && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  component="a"
-                  href={selected.resultPdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  startIcon={<FiFileText />}
-                >
-                  Open PDF
-                </Button>
-              )}
-              {selected.resultXlsxUrl && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  component="a"
-                  href={selected.resultXlsxUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  startIcon={<RiFileExcelLine />}
-                >
-                  Open Excel
-                </Button>
-              )}
-            </Stack>
-          </Box>
-        )}
-      </Drawer>
+      />
     </Paper>
   );
 }

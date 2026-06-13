@@ -40,7 +40,15 @@ function serializeJob(doc, baseUrl) {
     userName: doc.userName || '',
     notificationEmail: doc.notificationEmail,
     status: doc.status,
-    uploadedFiles: doc.uploadedFiles,
+    uploadedFiles: (doc.uploadedFiles || []).map((f) => ({
+      originalname: f.originalname,
+      filename: f.filename,
+      size: f.size,
+      mimetype: f.mimetype,
+      url: baseUrl
+        ? `${baseUrl}/uploads/${userId}/${f.filename}`
+        : `/uploads/${userId}/${f.filename}`,
+    })),
     resultPdfUrl,
     resultXlsxUrl,
     errorMessage: doc.errorMessage || '',
@@ -80,35 +88,49 @@ function isHttpUrl(value) {
   return /^https?:\/\/.+/i.test(value);
 }
 
-function resolveEventId(req) {
-  const fromBody = pickBodyString(req.body, 'eventId', 'event_id');
+function resolveJobCorrelationId(req) {
+  const fromBody = pickBodyString(
+    req.body,
+    'processing_job_id',
+    'processingJobId',
+    'eventId',
+    'event_id',
+  );
   if (fromBody) return fromBody;
-  return String(req.params?.eventId ?? '').trim();
+  return String(
+    req.params?.processingJobId ?? req.params?.eventId ?? '',
+  ).trim();
 }
 
-/** Agent result callback — POST JSON with eventId + result links (no auth). */
+/** Agent result callback — POST JSON with processing_job_id + result links (no auth). */
 async function handleAgentResult(req, res) {
-  const eventId = resolveEventId(req);
-  if (!eventId) {
-    return res.status(400).json({ message: 'eventId is required in request body' });
+  const correlationId = resolveJobCorrelationId(req);
+  if (!correlationId) {
+    return res.status(400).json({
+      message: 'processing_job_id is required in request body',
+    });
   }
 
   try {
-    const job = await ProcessingJob.findOne({ eventId });
+    const job = await ProcessingJob.findOne({ eventId: correlationId });
     if (!job) {
-      console.warn('[processing-jobs] Agent callback — job not found', { eventId });
+      console.warn('[processing-jobs] Agent callback — job not found', {
+        processing_job_id: correlationId,
+      });
       return res.status(404).json({ message: 'Processing job not found' });
     }
     if (job.status === 'completed') {
       console.warn('[processing-jobs] Agent callback — job already completed', {
-        eventId,
+        processing_job_id: correlationId,
         jobId: job._id.toString(),
       });
       return res.status(409).json({ message: 'Job already completed' });
     }
 
     const user = await User.findById(job.userId).select('email name').lean();
+    const eventId = job.eventId;
     const debugBase = {
+      processing_job_id: correlationId,
       eventId,
       jobId: job._id.toString(),
       userId: job.userId.toString(),
@@ -129,7 +151,7 @@ async function handleAgentResult(req, res) {
         ...debugBase,
         error: errorMessage,
       });
-      return res.json({ ok: true, eventId, status: job.status });
+      return res.json({ ok: true, processing_job_id: eventId, status: job.status });
     }
 
     const pdfUrl = pickBodyString(body, 'pdfUrl', 'pdf_url');
@@ -202,7 +224,7 @@ async function handleAgentResult(req, res) {
 
     return res.status(201).json({
       ok: true,
-      eventId,
+      processing_job_id: eventId,
       status: job.status,
       resultPdfUrl: serialized.resultPdfUrl,
       resultXlsxUrl: serialized.resultXlsxUrl,
@@ -215,8 +237,9 @@ async function handleAgentResult(req, res) {
 
 processingJobsRouter.post('/result', handleAgentResult);
 
-/** @deprecated Use POST /result with eventId, pdfUrl, and xlsxUrl in JSON body. */
+/** @deprecated Use POST /result with processing_job_id, pdfUrl, and xlsxUrl in JSON body. */
 processingJobsRouter.post('/callback/:eventId', handleAgentResult);
+processingJobsRouter.post('/callback/job/:processingJobId', handleAgentResult);
 
 processingJobsRouter.use(requireAuth);
 

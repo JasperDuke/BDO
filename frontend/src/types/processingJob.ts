@@ -5,6 +5,7 @@ export interface UploadedFileMeta {
   filename: string;
   size: number;
   mimetype: string;
+  url?: string;
 }
 
 export interface ProcessingJob {

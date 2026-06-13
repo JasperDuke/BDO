@@ -1,19 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import {
   Box,
   Button,
   LinearProgress,
+  List,
+  ListItemButton,
+  ListItemText,
   Skeleton,
   Stack,
   Typography,
   Alert,
 } from "@mui/material";
-import { FiRefreshCw, FiFileText } from "react-icons/fi";
+import { FiDownload, FiRefreshCw } from "react-icons/fi";
 import { RiFileExcelLine } from "react-icons/ri";
-import type { ProcessingJob } from "@/types/processingJob";
+import type { ProcessingJob, UploadedFileMeta } from "@/types/processingJob";
 
 const PDF_VIEW_MIN = 360;
+
+function isPdfFile(file: UploadedFileMeta) {
+  return (
+    file.mimetype === "application/pdf" ||
+    file.originalname.toLowerCase().endsWith(".pdf")
+  );
+}
 
 export function ProcessingLoadingView({ fileNames }: { fileNames: string[] }) {
   return (
@@ -69,6 +80,9 @@ export function ProcessingResultView({
   onTryAgain: () => void;
 }) {
   const fileNames = job.uploadedFiles.map((f) => f.originalname);
+  const [previewUpload, setPreviewUpload] = useState<UploadedFileMeta | null>(
+    job.uploadedFiles.find(isPdfFile) ?? null,
+  );
 
   return (
     <Stack spacing={2.5} sx={{ py: 0.5, minHeight: 0, flex: 1 }}>
@@ -80,6 +94,54 @@ export function ProcessingResultView({
           Results for {fileNames.join(", ") || "your upload"} — PDF and Excel versions.
         </Typography>
       </Box>
+
+      {job.uploadedFiles.length > 0 && (
+        <Box sx={{ flexShrink: 0 }}>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Uploaded files
+          </Typography>
+          <List dense disablePadding>
+            {job.uploadedFiles.map((file, idx) => (
+              <ListItemButton
+                key={`${file.filename}-${idx}`}
+                selected={previewUpload?.filename === file.filename}
+                onClick={() => setPreviewUpload(file)}
+                sx={{ borderRadius: 1, mb: 0.5, border: 1, borderColor: "divider" }}
+              >
+                <ListItemText
+                  primary={file.originalname}
+                  primaryTypographyProps={{ variant: "body2" }}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        </Box>
+      )}
+
+      {previewUpload?.url && isPdfFile(previewUpload) ? (
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 200,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 1.5,
+            overflow: "hidden",
+            bgcolor: "action.hover",
+          }}
+        >
+          <Box
+            component="iframe"
+            src={previewUpload.url}
+            title={previewUpload.originalname}
+            sx={{ width: "100%", height: "100%", minHeight: 200, border: 0, display: "block" }}
+          />
+        </Box>
+      ) : null}
+
+      <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+        Generated results
+      </Typography>
 
       {job.resultPdfUrl ? (
         <Box
@@ -118,12 +180,11 @@ export function ProcessingResultView({
             variant="outlined"
             component="a"
             href={job.resultPdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            startIcon={<FiFileText />}
+            download
+            startIcon={<FiDownload />}
             sx={{ flex: { sm: 1 } }}
           >
-            Open PDF
+            Download PDF
           </Button>
         )}
         {job.resultXlsxUrl && (
@@ -131,12 +192,11 @@ export function ProcessingResultView({
             variant="outlined"
             component="a"
             href={job.resultXlsxUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            download
             startIcon={<RiFileExcelLine />}
             sx={{ flex: { sm: 1 } }}
           >
-            Open Excel
+            Download XLSX
           </Button>
         )}
         <Button

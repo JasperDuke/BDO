@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Demo AML API - File Processing Integration",
-    "description": "Integration guide for the processing agent.\n\n## Flow\n1. User uploads files in the Demo AML app.\n2. Demo AML triggers the agent with an outbound webhook (configured in Temporal Trigger Setup or environment variables). The payload includes `eventId`, `email`, `attachments`, and `message`.\n3. Agent processes the uploaded files.\n4. Agent calls **POST /result** on this API with `eventId` plus public links to the result PDF and XLSX.\n5. Demo AML stores both links and shows them to the user in the Upload panel and History tab.\n\n## Agent configuration\n- **Result callback URL** (configure manually in the agent tool): `https://api-demoaml.atenxion.ai/api/processing-jobs/result`\n- **Correlation field**: use `eventId` from the upload trigger webhook body.\n- **Authentication**: optional. Set `AGENT_CALLBACK_TOKEN` on the server to require an `Authorization` header on callbacks.\n\n## Upload trigger webhook payload (outbound to agent)\nDemo AML POSTs this JSON to the agent trigger URL when a user submits files:\n```json\n{\n  \"eventId\": \"demoaml_event_550e8400-e29b-41d4-a716-446655440000\",\n  \"email\": \"user@company.com\",\n  \"attachments\": [\"https://api-demoaml.atenxion.ai/uploads/{userId}/{filename}.pdf\"],\n  \"message\": \"What is this file about? Please analyze...\"\n}\n```\n`extractedExcelData` may be included when Excel files are uploaded and records mode is enabled.",
-    "version": "1.2"
+    "title": "Demo AML API - Processing Result Callback",
+    "description": "Submit processing result files. Accepts a PDF file URL and an XLSX file URL. Requires `processing_job_id` from the agent context.",
+    "version": "1.3"
   },
   "servers": [
     {
@@ -14,39 +14,29 @@
   "paths": {
     "/result": {
       "post": {
-        "summary": "Submit Processing Result Links",
-        "description": "Submit public download links for the result PDF and XLSX after processing finishes. The `eventId` must match the value from the upload trigger webhook. Both `pdfUrl` and `xlsxUrl` are required for a successful completion. Snake_case aliases (`event_id`, `pdf_url`, `xlsx_url`) are also accepted.",
-        "tags": [
-          "Processing"
-        ],
-        "security": [],
+        "summary": "Submit processing result",
+        "description": "Submit the result files. Accepts `pdfUrl` and `xlsxUrl`. Requires `processing_job_id` from context.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/SubmitProcessingResultRequest"
-                  },
-                  {
-                    "$ref": "#/components/schemas/SubmitProcessingFailureRequest"
-                  }
+                  { "$ref": "#/components/schemas/SubmitProcessingResultRequest" },
+                  { "$ref": "#/components/schemas/SubmitProcessingFailureRequest" }
                 ]
               },
               "examples": {
                 "success": {
-                  "summary": "Submit result links",
                   "value": {
-                    "eventId": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
+                    "processing_job_id": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
                     "pdfUrl": "https://storage.example.com/results/report.pdf",
                     "xlsxUrl": "https://storage.example.com/results/report.xlsx"
                   }
                 },
                 "failure": {
-                  "summary": "Report failure",
                   "value": {
-                    "eventId": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
+                    "processing_job_id": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
                     "status": "failed",
                     "error": "Could not generate results from uploaded data"
                   }
@@ -57,34 +47,18 @@
         },
         "responses": {
           "201": {
-            "description": "Result links stored successfully",
+            "description": "Result stored",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubmitProcessingResultResponse"
-                },
-                "example": {
-                  "ok": true,
-                  "eventId": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
-                  "status": "completed",
-                  "resultPdfUrl": "https://storage.example.com/results/report.pdf",
-                  "resultXlsxUrl": "https://storage.example.com/results/report.xlsx"
-                }
+                "schema": { "$ref": "#/components/schemas/SubmitProcessingResultResponse" }
               }
             }
           },
           "200": {
-            "description": "Failure recorded successfully",
+            "description": "Failure recorded",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubmitProcessingFailureResponse"
-                },
-                "example": {
-                  "ok": true,
-                  "eventId": "demoaml_event_550e8400-e29b-41d4-a716-446655440000",
-                  "status": "failed"
-                }
+                "schema": { "$ref": "#/components/schemas/SubmitProcessingFailureResponse" }
               }
             }
           },
@@ -92,52 +66,15 @@
             "description": "Invalid request",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "examples": {
-                  "missingEventId": {
-                    "value": {
-                      "message": "eventId is required in request body"
-                    }
-                  },
-                  "missingLinks": {
-                    "value": {
-                      "message": "pdfUrl and xlsxUrl are required"
-                    }
-                  },
-                  "invalidUrls": {
-                    "value": {
-                      "message": "pdfUrl and xlsxUrl must be valid http(s) URLs"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid or missing callback token (only when AGENT_CALLBACK_TOKEN is configured)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "message": "Invalid callback token"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
           },
           "404": {
-            "description": "Processing job not found for the given eventId",
+            "description": "Job not found",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "message": "Processing job not found"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
           },
@@ -145,12 +82,15 @@
             "description": "Job already completed",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "message": "Job already completed"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "502": {
+            "description": "Failed to download result files from provided URLs",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
           },
@@ -158,12 +98,7 @@
             "description": "Internal server error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "message": "Internal server error"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
           }
@@ -172,150 +107,67 @@
     }
   },
   "components": {
-    "securitySchemes": {
-      "CallbackTokenAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "Authorization",
-        "description": "Optional. Required only when the server has AGENT_CALLBACK_TOKEN set. Pass the token directly or as Bearer {token}."
-      }
-    },
     "schemas": {
-      "UploadTriggerWebhookPayload": {
-        "type": "object",
-        "description": "Reference only — sent by Demo AML to the agent trigger URL when a user uploads files. Not an inbound endpoint on this API.",
-        "properties": {
-          "eventId": {
-            "type": "string",
-            "description": "Unique processing job id. Pass this back in POST /result.",
-            "example": "demoaml_event_550e8400-e29b-41d4-a716-446655440000"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "Recipient email for result notification"
-          },
-          "attachments": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uri"
-            },
-            "description": "Public URLs of uploaded files to process"
-          },
-          "message": {
-            "type": "string",
-            "description": "Agent prompt / instruction text"
-          },
-          "extractedExcelData": {
-            "type": "array",
-            "description": "Present when Excel files are uploaded and records mode is enabled",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      },
       "SubmitProcessingResultRequest": {
         "type": "object",
-        "required": [
-          "eventId",
-          "pdfUrl",
-          "xlsxUrl"
-        ],
+        "required": ["processing_job_id", "pdfUrl", "xlsxUrl"],
         "properties": {
-          "eventId": {
+          "processing_job_id": {
             "type": "string",
-            "description": "Processing job id from the upload trigger webhook (`eventId` or `event_id`)"
+            "description": "Job id from agent context"
           },
           "pdfUrl": {
             "type": "string",
             "format": "uri",
-            "description": "Public http(s) URL to the result PDF (`pdfUrl` or `pdf_url`)"
+            "description": "Public http(s) URL to the result PDF"
           },
           "xlsxUrl": {
             "type": "string",
             "format": "uri",
-            "description": "Public http(s) URL to the result XLSX (`xlsxUrl` or `xlsx_url`)"
+            "description": "Public http(s) URL to the result XLSX"
           }
         }
       },
       "SubmitProcessingFailureRequest": {
         "type": "object",
-        "required": [
-          "eventId",
-          "status"
-        ],
+        "required": ["processing_job_id"],
         "properties": {
-          "eventId": {
+          "processing_job_id": {
             "type": "string",
-            "description": "Processing job id from the upload trigger webhook"
+            "description": "Job id from agent context"
           },
           "status": {
             "type": "string",
-            "enum": [
-              "failed"
-            ],
-            "description": "Must be \"failed\" when reporting an error without result links"
+            "enum": ["failed"]
           },
           "error": {
             "type": "string",
-            "description": "Human-readable failure reason"
+            "description": "Failure reason"
           }
         }
       },
       "SubmitProcessingResultResponse": {
         "type": "object",
         "properties": {
-          "ok": {
-            "type": "boolean",
-            "example": true
-          },
-          "eventId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "completed"
-            ]
-          },
-          "resultPdfUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "Stored PDF result link shown to the user"
-          },
-          "resultXlsxUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "Stored XLSX result link shown to the user"
-          }
+          "ok": { "type": "boolean" },
+          "processing_job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["completed"] },
+          "resultPdfUrl": { "type": "string", "format": "uri" },
+          "resultXlsxUrl": { "type": "string", "format": "uri" }
         }
       },
       "SubmitProcessingFailureResponse": {
         "type": "object",
         "properties": {
-          "ok": {
-            "type": "boolean",
-            "example": true
-          },
-          "eventId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "failed"
-            ]
-          }
+          "ok": { "type": "boolean" },
+          "processing_job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["failed"] }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string"
-          }
+          "message": { "type": "string" }
         }
       }
     }
