@@ -12,6 +12,10 @@ import {
   isXlsxFile,
   isMdFile,
 } from "../utils/excelExtract.js";
+import {
+  isAllowedUploadFileName,
+  uploadFileNameValidationMessage,
+} from "../utils/uploadFileName.js";
 
 export const uploadRouter = Router();
 
@@ -51,11 +55,20 @@ const upload = multer({
     const ext = path.extname(file.originalname || "").toLowerCase();
     const okMime = ALLOWED_MIMES.has(file.mimetype);
     const okExt = ext === ".pdf" || ext === ".xlsx" || ext === ".md";
-    if (okMime || okExt) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF, XLSX and MD files are allowed"));
+    if (!okMime && !okExt) {
+      return cb(new Error("Only PDF, XLSX and MD files are allowed"));
     }
+
+    const originalName = uploadedOriginalName(file);
+    if (!isAllowedUploadFileName(originalName)) {
+      return cb(
+        new Error(
+          `"${originalName}" is not allowed. ${uploadFileNameValidationMessage()}`,
+        ),
+      );
+    }
+
+    cb(null, true);
   },
 });
 
