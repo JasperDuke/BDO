@@ -13,6 +13,7 @@ import {
   isMdFile,
 } from "../utils/excelExtract.js";
 import {
+  getUploadFileKind,
   isAllowedUploadFileName,
   uploadFileNameValidationMessage,
 } from "../utils/uploadFileName.js";
@@ -60,10 +61,15 @@ const upload = multer({
     }
 
     const originalName = uploadedOriginalName(file);
-    if (!isAllowedUploadFileName(originalName)) {
+    const fileKind = getUploadFileKind(originalName, file.mimetype);
+    if (!fileKind) {
+      return cb(new Error("Only PDF, XLSX and MD files are allowed"));
+    }
+
+    if (!isAllowedUploadFileName(originalName, fileKind)) {
       return cb(
         new Error(
-          `"${originalName}" is not allowed. ${uploadFileNameValidationMessage()}`,
+          `"${originalName}" is not allowed. ${uploadFileNameValidationMessage(fileKind)}`,
         ),
       );
     }
