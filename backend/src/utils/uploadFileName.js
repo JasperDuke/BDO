@@ -27,7 +27,13 @@ export const PDF_DOCUMENT_TYPES = [
   },
 ];
 
-const EXCEL_NAME_PATTERN = /\bKYC/i;
+/** Match a token delimited by non-letters only (underscores/hyphens/spaces are OK). */
+function alphaBoundedTokenPattern(token) {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z])${escaped}(?![A-Za-z])`, "i");
+}
+
+const EXCEL_NAME_PATTERN = alphaBoundedTokenPattern(EXCEL_REQUIRED_TOKEN);
 
 /** Match multi-word long forms with space, hyphen, or underscore separators. */
 function longFormPhrasePattern(...words) {
@@ -39,10 +45,7 @@ function longFormPhrasePattern(...words) {
 }
 
 function shortCodePattern(code) {
-  if (code === "SSM") {
-    return /\bSSM(?=\d|\b|_)/i;
-  }
-  return new RegExp(`\\b${code}\\b`, "i");
+  return alphaBoundedTokenPattern(code);
 }
 
 function buildPdfNamePatterns() {
